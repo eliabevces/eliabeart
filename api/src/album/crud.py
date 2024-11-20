@@ -45,8 +45,9 @@ def add_cover_image(db: Session, album_id: int, image_name: int) -> models.Album
     album = db.query(models.Album).filter(models.Album.id == album_id).first()
     list_of_images = os.listdir(os.path.join(settings.IMAGES_BASE_PATH, album.nome))
     if f"{image_name}.jpg" not in list_of_images:
+        print(f"Image {image_name} not found in album {album.nome}")
         return None
-    album.cover_image = image_name
+    album.cover = image_name
     db.commit()
     db.refresh(album)
     return album

@@ -225,6 +225,19 @@ async def create_foto(
         return Response(content="Erro ao criar foto", status_code=500)
 
 
+@app.post("/album/{album_id}/cover/{foto}")
+async def add_cover_image(album_id: int, foto: str):
+    try:
+        album = crud.add_cover_image(SessionLocal(), album_id, foto)
+        if album is None:
+            return Response(content="Album não encontrado", status_code=404)
+        return Response(content="Capa adicionada com sucesso", status_code=200)
+    except Exception as e:
+        # Log the exception
+        print(str(e))
+        return Response(content="Erro ao adicionar capa", status_code=500)
+
+
 # Delete an album
 @app.delete("/album/{album_id}")
 async def delete_album(album_id: int):
