@@ -27,6 +27,7 @@ class GlobalConfig(BaseConfig):
 
     redis_server: str = os.environ.get("REDIS_SERVER")
     redis_port: int = int(os.environ.get("REDIS_PORT"))
+    IMAGES_BASE_PATH: str = os.path.join(os.getcwd(), "imagens")
 
     @property
     def sync_database_url(self) -> str:
