@@ -1,14 +1,16 @@
 import os
 from typing import Annotated
+from src.core.config import settings
 from fastapi import FastAPI, Response, File, Depends
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.dependencies.redis import cache
-from PIL import Image
 from src.album import crud
 from src.database import models
 from src.database.database import SessionLocal, engine
 from src.album import schemas
+import json
+
 
 # Create database tables on application startup
 models.Base.metadata.create_all(bind=engine)
@@ -24,14 +26,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-IMAGES_BASE_PATH = os.path.join(os.path.dirname(__file__), "imagens")
-
-
-# Root endpoint
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
-
 
 # Get public albums
 @app.get("/publicos")
@@ -41,10 +35,19 @@ async def get_albuns_publicos(redis_cache: cache = Depends(cache)):
         cached_albums = redis_cache.get(cache_key)
 
         if cached_albums:
-            albuns = eval(cached_albums)
+            albuns = json.loads(cached_albums)
         else:
             albuns = crud.get_albuns_publicos(SessionLocal())
-            redis_cache.set(cache_key, str(albuns), ex=60)
+            albuns = [
+                {
+                    "id": album.id,
+                    "nome": album.nome,
+                    "publico": album.publico,
+                    "cover": album.cover,
+                }
+                for album in albuns
+            ]
+            redis_cache.set(cache_key, json.dumps(albuns), ex=60)
 
         return {"albuns": albuns}
     except Exception as e:
@@ -61,7 +64,7 @@ async def get_fotos_publicas(album_id: int):
         album = crud.get_album(SessionLocal(), album_id)
         if album is None or not album.publico:
             return Response(content="Album não encontrado", status_code=404)
-        fotos = os.listdir(os.path.join(IMAGES_BASE_PATH, album.nome))
+        fotos = os.listdir(os.path.join(settings.IMAGES_BASE_PATH, album.nome))
         fotos = [foto.split(".")[0] for foto in fotos if foto.endswith(".jpg")]
 
         print(fotos)
@@ -91,70 +94,74 @@ async def get_foto_publica(
                     "nome": album.nome,
                     "publico": "true" if album.publico else "false",
                 }
-                redis_cache.hmset(cache_key, album_data)
+                redis_cache.hset(cache_key, mapping=album_data)
+                redis_cache.expire(cache_key, 60)
         else:
             album = {
-                "id": int(cached_profile[0]),
-                "nome": cached_profile[1].decode("utf-8"),
-                "publico": cached_profile[2].decode("utf-8") == "true",
+                "id": int(cached_profile[0]) if cached_profile[0] else None,
+                "nome": (
+                    cached_profile[1].decode("utf-8") if cached_profile[1] else None
+                ),
+                "publico": (
+                    cached_profile[2].decode("utf-8") == "true"
+                    if cached_profile[2]
+                    else None
+                ),
             }
 
         if album is None or not album["publico"]:
             return Response(content="Album não encontrado", status_code=404)
 
-        image_path = os.path.join(IMAGES_BASE_PATH, album["nome"], f"{foto}.webp")
-        if not os.path.exists(image_path):
-            original_image_path = os.path.join(
-                IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg"
-            )
-            if not os.path.exists(original_image_path):
-                return Response(content="Foto não encontrada", status_code=404)
-            imagem = Image.open(original_image_path)
-            imagem.save(image_path, "webp", optimize=True, quality=20)
+        original_image_path = os.path.join(
+            settings.IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg"
+        )
+        if not os.path.exists(original_image_path):
+            return Response(content="Foto não encontrada", status_code=404)
 
-        return FileResponse(image_path, media_type="image/webp")
+        return FileResponse(original_image_path, media_type="image/jpg")
     except Exception as e:
         # Log the exception
         print(str(e))
         return Response(content="Erro ao buscar foto", status_code=500)
 
 
-@app.get("/album/{album_id}/{foto}")
-async def get_foto_full_quality(
-    album_id: int, foto: str, redis_cache: cache = Depends(cache)
-):
-    try:
-        cache_key = f"album_{album_id}"
-        cached_profile = redis_cache.hmget(cache_key, "id", "nome", "publico")
+# @app.get("/album/{album_id}/{foto}")
+# async def get_foto_full_quality(
+#     album_id: int, foto: str, redis_cache: cache = Depends(cache)
+# ):
+#     try:
+#         cache_key = f"album_{album_id}"
+#         cached_profile = redis_cache.hget(cache_key, "id", "nome", "publico")
 
-        if not cached_profile or not all(cached_profile):
-            album = crud.get_album(SessionLocal(), album_id)
-            if album:
-                album_data = {
-                    "id": album.id,
-                    "nome": album.nome,
-                    "publico": "true" if album.publico else "false",
-                }
-                redis_cache.hmset(cache_key, album_data)
-        else:
-            album = {
-                "id": int(cached_profile[0]),
-                "nome": cached_profile[1].decode("utf-8"),
-                "publico": cached_profile[2].decode("utf-8") == "true",
-            }
+#         if not cached_profile or not all(cached_profile):
+#             album = crud.get_album(SessionLocal(), album_id)
+#             if album:
+#                 album_data = {
+#                     "id": album.id,
+#                     "nome": album.nome,
+#                     "publico": "true" if album.publico else "false",
+#                 }
+#                 redis_cache.hset(cache_key, mapping=album_data)
+#                 redis_cache.expire(cache_key, 60)
+#         else:
+#             album = {
+#                 "id": int(cached_profile[0]),
+#                 "nome": cached_profile[1].decode("utf-8"),
+#                 "publico": cached_profile[2].decode("utf-8") == "true",
+#             }
 
-        if album is None:
-            return Response(content="Album não encontrado", status_code=404)
+#         if album is None:
+#             return Response(content="Album não encontrado", status_code=404)
 
-        image_path = os.path.join(IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg")
-        if not os.path.exists(image_path):
-            return Response(content="Foto não encontrada", status_code=404)
+#         image_path = os.path.join(settings.IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg")
+#         if not os.path.exists(image_path):
+#             return Response(content="Foto não encontrada", status_code=404)
 
-        return FileResponse(image_path, media_type="image/jpg")
-    except Exception as e:
-        # Log the exception
-        print(str(e))
-        return Response(content="Foto não encontrada", status_code=404)
+#         return FileResponse(image_path, media_type="image/jpg")
+#     except Exception as e:
+#         # Log the exception
+#         print(str(e))
+#         return Response(content="Foto não encontrada", status_code=404)
 
 
 # Create an album
@@ -162,8 +169,8 @@ async def get_foto_full_quality(
 async def create_album(album: schemas.AlbumCreate):
     try:
         crud.create_album(SessionLocal(), album)
-        if not os.path.exists(os.path.join(IMAGES_BASE_PATH, album.nome)):
-            os.makedirs(os.path.join(IMAGES_BASE_PATH, album.nome))
+        if not os.path.exists(os.path.join(settings.IMAGES_BASE_PATH, album.nome)):
+            os.makedirs(os.path.join(settings.IMAGES_BASE_PATH, album.nome))
         return Response(content="Album criado com sucesso", status_code=201)
     except Exception as e:
         # Log the exception
@@ -181,7 +188,7 @@ async def create_foto(
 ):
     try:
         cache_key = f"album_{album_id}"
-        cached_profile = redis_cache.hmget(cache_key, "id", "nome", "publico")
+        cached_profile = redis_cache.hget(cache_key, "id", "nome", "publico")
 
         if not cached_profile or not all(cached_profile):
             album = crud.get_album(SessionLocal(), album_id)
@@ -191,7 +198,8 @@ async def create_foto(
                     "nome": album.nome,
                     "publico": "true" if album.publico else "false",
                 }
-                redis_cache.hmset(cache_key, album_data)
+                redis_cache.hset(cache_key, mapping=album_data)
+                redis_cache.expire(cache_key, 60)
         else:
             album = {
                 "id": int(cached_profile[0]),
@@ -206,7 +214,7 @@ async def create_foto(
             os.makedirs(f"imagens/{album['nome']}")
 
         with open(
-            os.path.join(IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg"), "wb"
+            os.path.join(settings.IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg"), "wb"
         ) as f:
             f.write(foto_file)
 
@@ -246,7 +254,8 @@ async def delete_foto(album_id: int, foto: str, redis_cache: cache = Depends(cac
                     "nome": album.nome,
                     "publico": "true" if album.publico else "false",
                 }
-                redis_cache.hmset(cache_key, album_data)
+                redis_cache.hset(cache_key, mapping=album_data)
+                redis_cache.expire(cache_key, 60)
         else:
             album = {
                 "id": int(cached_profile[0]),
@@ -257,13 +266,12 @@ async def delete_foto(album_id: int, foto: str, redis_cache: cache = Depends(cac
         if album is None:
             return Response(content="Album não encontrado", status_code=404)
 
-        image_path = os.path.join(IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg")
-        image_path_webp = os.path.join(IMAGES_BASE_PATH, album["nome"], f"{foto}.webp")
+        image_path = os.path.join(
+            settings.IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg"
+        )
 
         if os.path.exists(image_path):
             os.remove(image_path)
-        if os.path.exists(image_path_webp):
-            os.remove(image_path_webp)
 
         return Response(content="Foto deletada com sucesso", status_code=200)
     except FileNotFoundError:
