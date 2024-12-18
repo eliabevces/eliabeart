@@ -59,7 +59,7 @@ async def get_albuns_publicos(redis_cache: cache = Depends(cache)):
         return {"albuns": albuns}
     except Exception as e:
         # Log the exception
-        print(str(e))
+        print("GET /publicos", str(e))
         return Response(content="Erro ao buscar albuns", status_code=500)
 
 
@@ -77,7 +77,7 @@ async def get_fotos_publicas(album_id: int):
         return {"fotos": fotos}
     except Exception as e:
         # Log the exception
-        print(str(e))
+        print(f"GET /publicos/{album_id}", str(e))
         return Response(content="Erro ao buscar fotos", status_code=500)
 
 
@@ -95,7 +95,7 @@ async def get_foto_publica(
             k.decode("utf-8"): v.decode("utf-8") for k, v in cached_profile.items()
         }
 
-        if not cached_profile or not all(cached_profile):
+        if not cached_profile or not all(cached_profile.values()):
             album = album_crud.get_album(SessionLocal(), album_id)
             if album:
                 album_data = {
@@ -105,22 +105,16 @@ async def get_foto_publica(
                 }
                 redis_cache.hset(cache_key, mapping=album_data)
                 redis_cache.expire(cache_key, 60)
+                album = album_data
+            else:
+                album = None
         else:
             album = {
-                "id": (
-                    int(cached_profile.get("id")) if cached_profile.get("id") else None
-                ),
-                "nome": (
-                    cached_profile.get("nome") if cached_profile.get("nome") else None
-                ),
-                "publico": (
-                    cached_profile.get("publico") == "true"
-                    if cached_profile.get("publico")
-                    else None
-                ),
+                "id": int(cached_profile.get("id")),
+                "nome": cached_profile.get("nome"),
+                "publico": cached_profile.get("publico") == "true",
             }
 
-        print(album)
         if album is None or not album["publico"]:
             return Response(content="Album não encontrado", status_code=404)
 
@@ -129,7 +123,6 @@ async def get_foto_publica(
         if cached_images:
             fotos = json.loads(cached_images)
         else:
-            print("Getting from database")
             fotos = imagem_crud.get_by_album_id(SessionLocal(), album_id)
             fotos = [
                 {
@@ -139,11 +132,8 @@ async def get_foto_publica(
             ]
             redis_cache.set(cache_key, json.dumps(fotos), ex=60)
 
-        print(fotos[-1]["nome"])
-
         image = next((img for img in fotos if img["nome"] == foto), None)
 
-        print(image)
         if image is None:
             return Response(content="Foto não encontrada", status_code=404)
 
@@ -157,47 +147,8 @@ async def get_foto_publica(
         return FileResponse(image_path, media_type="image/jpg")
     except Exception as e:
         # Log the exception
-        print(str(e))
+        print(f"GET /publicos/{album_id}/{foto}", str(e))
         return Response(content="Erro ao buscar foto", status_code=500)
-
-
-# @app.get("/album/{album_id}/{foto}")
-# async def get_foto_full_quality(
-#     album_id: int, foto: str, redis_cache: cache = Depends(cache)
-# ):
-#     try:
-#         cache_key = f"album_{album_id}"
-#         cached_profile = redis_cache.hget(cache_key, "id", "nome", "publico")
-
-#         if not cached_profile or not all(cached_profile):
-#             album = album_crud.get_album(SessionLocal(), album_id)
-#             if album:
-#                 album_data = {
-#                     "id": album.id,
-#                     "nome": album.nome,
-#                     "publico": "true" if album.publico else "false",
-#                 }
-#                 redis_cache.hset(cache_key, mapping=album_data)
-#                 redis_cache.expire(cache_key, 60)
-#         else:
-#             album = {
-#                 "id": int(cached_profile[0]),
-#                 "nome": cached_profile[1].decode("utf-8"),
-#                 "publico": cached_profile[2].decode("utf-8") == "true",
-#             }
-
-#         if album is None:
-#             return Response(content="Album não encontrado", status_code=404)
-
-#         image_path = os.path.join(settings.IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg")
-#         if not os.path.exists(image_path):
-#             return Response(content="Foto não encontrada", status_code=404)
-
-#         return FileResponse(image_path, media_type="image/jpg")
-#     except Exception as e:
-#         # Log the exception
-#         print(str(e))
-#         return Response(content="Foto não encontrada", status_code=404)
 
 
 # Create an album
@@ -210,7 +161,7 @@ async def create_album(album: album_schemas.AlbumCreate):
         return Response(content="Album criado com sucesso", status_code=201)
     except Exception as e:
         # Log the exception
-        print(str(e))
+        print("POST /album", str(e))
         return Response(content="Erro ao criar album", status_code=500)
 
 
@@ -271,7 +222,7 @@ async def create_foto(
         return Response(content="Foto criada com sucesso", status_code=201)
     except Exception as e:
         # Log the exception
-        print(str(e))
+        print(f"POST /album/{album_id}/{foto}", str(e))
         return Response(content="Erro ao criar foto", status_code=500)
 
 
@@ -289,7 +240,7 @@ async def add_cover_image(album_id: int, foto: str):
         return Response(content="Capa adicionada com sucesso", status_code=200)
     except Exception as e:
         # Log the exception
-        print(str(e))
+        print(f"POST /album/{album_id}/cover/{foto}", str(e))
         return Response(content="Erro ao adicionar capa", status_code=500)
 
 
@@ -303,7 +254,7 @@ async def delete_album(album_id: int):
         return Response(content="Album deletado com sucesso", status_code=200)
     except Exception as e:
         # Log the exception
-        print(str(e))
+        print(f"DELETE /album/{album_id}", str(e))
         return Response(content="Erro ao deletar album", status_code=500)
 
 
@@ -346,5 +297,5 @@ async def delete_foto(album_id: int, foto: str, redis_cache: cache = Depends(cac
         return Response(content="Foto não encontrada", status_code=404)
     except Exception as e:
         # Log the exception
-        print(str(e))
+        print(f"DELETE /album/{album_id}/{foto}", str(e))
         return Response(content="Erro ao deletar foto", status_code=500)
