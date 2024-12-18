@@ -13,3 +13,15 @@ class Album(Base):
     publico = Column(Boolean)
     passcode = Column(String)
     cover = Column(String)
+    imagens = relationship("Imagem", back_populates="album")
+
+
+class Imagem(Base):
+    __tablename__ = "imagens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String)
+    descricao = Column(String)
+    hash = Column(String)
+    album_id = Column(Integer, ForeignKey("albuns.id"))
+    album = relationship("Album", back_populates="imagens")

@@ -7,6 +7,10 @@ from ..database import models
 from . import schemas
 
 
+def get_albuns(db: Session, skip: int = 0, limit: int = 100) -> list:
+    return db.query(models.Album).offset(skip).limit(limit).all()
+
+
 def get_album(db: Session, album_id: int) -> models.Album:
     return db.query(models.Album).filter(models.Album.id == album_id).first()
 

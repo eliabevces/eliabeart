@@ -24,4 +24,4 @@ RUN rm -rf ./imagens
 ENTRYPOINT ["/opt/venv/bin/python", "-m"]
 
 # Command to run the application with gunicorn
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "main:app", "--workers", "4", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "main:app", "--workers", "4", "--bind", "0.0.0.0:8000", "--log-level", "debug"]

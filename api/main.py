@@ -1,17 +1,22 @@
+import base64
 import os
+import time
 from typing import Annotated
 from src.core.config import settings
 from fastapi import FastAPI, Response, File, Depends
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.dependencies.redis import cache
-from src.album import crud
+from src.album import crud as album_crud
+from src.imagem import crud as imagem_crud
 from src.database import models
 from src.database.database import SessionLocal, engine
-from src.album import schemas
+from src.album import schemas as album_schemas
+from src.imagem import schemas as imagem_schemas
 import json
 from PIL import Image, ImageFilter
 import io
+import blurhash
 
 
 # Create database tables on application startup
@@ -39,7 +44,7 @@ async def get_albuns_publicos(redis_cache: cache = Depends(cache)):
         if cached_albums:
             albuns = json.loads(cached_albums)
         else:
-            albuns = crud.get_albuns_publicos(SessionLocal())
+            albuns = album_crud.get_albuns_publicos(SessionLocal())
             albuns = [
                 {
                     "id": album.id,
@@ -63,17 +68,11 @@ async def get_albuns_publicos(redis_cache: cache = Depends(cache)):
 async def get_fotos_publicas(album_id: int):
     try:
 
-        album = crud.get_album(SessionLocal(), album_id)
+        album = album_crud.get_album(SessionLocal(), album_id)
         if album is None or not album.publico:
             return Response(content="Album não encontrado", status_code=404)
-        fotos = os.listdir(os.path.join(settings.IMAGES_BASE_PATH, album.nome))
-        fotos = [
-            foto.split(".")[0]
-            for foto in fotos
-            if foto.endswith(".jpg") and not foto.endswith("_thumb.jpg")
-        ]
 
-        print(fotos)
+        fotos = imagem_crud.get_by_album_id(SessionLocal(), album_id)
 
         return {"fotos": fotos}
     except Exception as e:
@@ -87,8 +86,6 @@ async def get_fotos_publicas(album_id: int):
 async def get_foto_publica(
     album_id: int,
     foto: str,
-    thumbnail: bool = False,
-    quality: int = 50,
     redis_cache: cache = Depends(cache),
 ):
     try:
@@ -99,7 +96,7 @@ async def get_foto_publica(
         }
 
         if not cached_profile or not all(cached_profile):
-            album = crud.get_album(SessionLocal(), album_id)
+            album = album_crud.get_album(SessionLocal(), album_id)
             if album:
                 album_data = {
                     "id": album.id,
@@ -123,14 +120,32 @@ async def get_foto_publica(
                 ),
             }
 
+        print(album)
         if album is None or not album["publico"]:
             return Response(content="Album não encontrado", status_code=404)
 
-        if thumbnail:
-            image_path = os.path.join(
-                settings.IMAGES_BASE_PATH, album["nome"], f"{foto}_thumb.jpg"
-            )
-            return FileResponse(image_path, media_type="image/jpg")
+        cache_key = f"imagens_{album_id}"
+        cached_images = redis_cache.get(cache_key)
+        if cached_images:
+            fotos = json.loads(cached_images)
+        else:
+            print("Getting from database")
+            fotos = imagem_crud.get_by_album_id(SessionLocal(), album_id)
+            fotos = [
+                {
+                    "nome": foto.nome,
+                }
+                for foto in fotos
+            ]
+            redis_cache.set(cache_key, json.dumps(fotos), ex=60)
+
+        print(fotos[-1]["nome"])
+
+        image = next((img for img in fotos if img["nome"] == foto), None)
+
+        print(image)
+        if image is None:
+            return Response(content="Foto não encontrada", status_code=404)
 
         image_path = os.path.join(
             settings.IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg"
@@ -155,7 +170,7 @@ async def get_foto_publica(
 #         cached_profile = redis_cache.hget(cache_key, "id", "nome", "publico")
 
 #         if not cached_profile or not all(cached_profile):
-#             album = crud.get_album(SessionLocal(), album_id)
+#             album = album_crud.get_album(SessionLocal(), album_id)
 #             if album:
 #                 album_data = {
 #                     "id": album.id,
@@ -187,9 +202,9 @@ async def get_foto_publica(
 
 # Create an album
 @app.post("/album")
-async def create_album(album: schemas.AlbumCreate):
+async def create_album(album: album_schemas.AlbumCreate):
     try:
-        crud.create_album(SessionLocal(), album)
+        album_crud.create_album(SessionLocal(), album)
         if not os.path.exists(os.path.join(settings.IMAGES_BASE_PATH, album.nome)):
             os.makedirs(os.path.join(settings.IMAGES_BASE_PATH, album.nome))
         return Response(content="Album criado com sucesso", status_code=201)
@@ -214,7 +229,7 @@ async def create_foto(
             k.decode("utf-8"): v.decode("utf-8") for k, v in cached_profile.items()
         }
         if not cached_profile or not all(cached_profile):
-            album = crud.get_album(SessionLocal(), album_id)
+            album = album_crud.get_album(SessionLocal(), album_id)
             if album:
                 album_data = {
                     "id": album.id,
@@ -236,16 +251,22 @@ async def create_foto(
         if not os.path.exists(f"imagens/{album['nome']}"):
             os.makedirs(f"imagens/{album['nome']}")
 
-        with open(
-            os.path.join(settings.IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg"), "wb"
-        ) as f:
-            f.write(foto_file)
-        image = Image.open(io.BytesIO(foto_file))
-        image.thumbnail((200, 200))
-        image = image.filter(ImageFilter.GaussianBlur(5))
-        image.save(
-            os.path.join(settings.IMAGES_BASE_PATH, album["nome"], f"{foto}_thumb.jpg")
+        image_path = os.path.join(
+            settings.IMAGES_BASE_PATH, album["nome"], f"{foto}.jpg"
         )
+
+        with Image.open(io.BytesIO(foto_file)) as image:
+            image.save(image_path)
+            image.thumbnail((32, 32))
+            image_hash = blurhash.encode(image, x_components=4, y_components=3)
+
+        imagem = imagem_schemas.ImagemCreate(
+            nome=foto,
+            descricao="",
+            hash=image_hash,
+            album_id=album_id,
+        )
+        imagem_crud.create_image(SessionLocal(), imagem)
 
         return Response(content="Foto criada com sucesso", status_code=201)
     except Exception as e:
@@ -257,7 +278,12 @@ async def create_foto(
 @app.post("/album/{album_id}/cover/{foto}")
 async def add_cover_image(album_id: int, foto: str):
     try:
-        album = crud.add_cover_image(SessionLocal(), album_id, foto)
+        foto = imagem_crud.get_image_by_name_and_album_id(
+            SessionLocal(), foto, album_id
+        )
+        if foto is None:
+            return Response(content="Foto não encontrada", status_code=404)
+        album = album_crud.add_cover_image(SessionLocal(), album_id, foto)
         if album is None:
             return Response(content="Album não encontrado", status_code=404)
         return Response(content="Capa adicionada com sucesso", status_code=200)
@@ -271,7 +297,7 @@ async def add_cover_image(album_id: int, foto: str):
 @app.delete("/album/{album_id}")
 async def delete_album(album_id: int):
     try:
-        album = crud.delete_album(SessionLocal(), album_id)
+        album = album_crud.delete_album(SessionLocal(), album_id)
         if album is None:
             return Response(content="Album não encontrado", status_code=404)
         return Response(content="Album deletado com sucesso", status_code=200)
@@ -289,7 +315,7 @@ async def delete_foto(album_id: int, foto: str, redis_cache: cache = Depends(cac
         cached_profile = redis_cache.hmget(cache_key, "id", "nome", "publico")
 
         if not cached_profile or not all(cached_profile):
-            album = crud.get_album(SessionLocal(), album_id)
+            album = album_crud.get_album(SessionLocal(), album_id)
             if album:
                 album_data = {
                     "id": album.id,
