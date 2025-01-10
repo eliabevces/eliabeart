@@ -331,7 +331,7 @@ async def reset_photos(album_id: int):
                     ),
                 )
         fotos_in_db = imagem_crud.get_by_album_id(SessionLocal(), album_id)
-        return Response(fotos_in_db)
+        return Response(content=json.dumps(fotos_in_db), media_type="application/json")
     except Exception as e:
         # Log the exception
         print(f"GET /resetPhotos/{album_id}", str(e))
