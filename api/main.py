@@ -34,6 +34,11 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+async def root():
+    return "Hello World!"
+
+
 # Get public albums
 @app.get("/publicos")
 async def get_albuns_publicos(redis_cache: cache = Depends(cache)):
