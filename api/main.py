@@ -330,8 +330,8 @@ async def reset_photos(album_id: int):
                         album_id=album_id,
                     ),
                 )
-
-        return Response(content="Fotos atualizadas com sucesso", status_code=200)
+        fotos_in_db = imagem_crud.get_by_album_id(SessionLocal(), album_id)
+        return Response(fotos_in_db)
     except Exception as e:
         # Log the exception
         print(f"GET /resetPhotos/{album_id}", str(e))
