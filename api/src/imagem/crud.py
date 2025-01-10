@@ -48,3 +48,9 @@ def update_imagem(db: Session, image: schemas.Imagem):
     )
     db.commit()
     return db.query(models.Imagem).filter(models.Imagem.id == image.id).first()
+
+
+def delete_all_images_by_album_id(db: Session, album_id: int):
+    db.query(models.Imagem).filter(models.Imagem.album_id == album_id).delete()
+    db.commit()
+    return {"message": "Imagens deletadas com sucesso!"}

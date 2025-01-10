@@ -314,15 +314,17 @@ async def delete_foto(album_id: int, foto: str, redis_cache: cache = Depends(cac
 @app.get("/resetPhotos/{album_id}")
 async def reset_photos(album_id: int):
     try:
+        imagem_crud.delete_all_images_by_album_id(SessionLocal(), album_id)
         album = album_crud.get_album(SessionLocal(), album_id)
         fotos_in_db = imagem_crud.get_by_album_id(SessionLocal(), album_id)
         fotos_in_path = os.listdir(os.path.join(settings.IMAGES_BASE_PATH, album.nome))
         for foto in fotos_in_path:
-            if foto not in [foto.nome for foto in fotos_in_db]:
+            nome = foto.split(".")[0]
+            if nome not in [foto.nome for foto in fotos_in_db]:
                 imagem_crud.create_image(
                     SessionLocal(),
                     imagem_schemas.ImagemCreate(
-                        nome=foto,
+                        nome=nome,
                         descricao="",
                         hash="",
                         album_id=album_id,
