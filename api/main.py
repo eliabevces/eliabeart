@@ -1,6 +1,4 @@
-import base64
 import os
-import time
 from typing import Annotated
 from src.core.config import settings
 from fastapi import FastAPI, Response, File, Depends
@@ -14,7 +12,7 @@ from src.database.database import SessionLocal, engine
 from src.album import schemas as album_schemas
 from src.imagem import schemas as imagem_schemas
 import json
-from PIL import Image, ImageFilter
+from PIL import Image
 import io
 import blurhash
 
@@ -41,7 +39,47 @@ async def handle_any_method():
 
 @app.get("/")
 async def root():
-    return "Hello World!"
+    if os.path.exists(settings.IMAGES_BASE_PATH):
+        dirs = os.listdir(settings.IMAGES_BASE_PATH)
+        for dir in dirs:
+            if os.path.exists(os.path.join(settings.IMAGES_BASE_PATH, dir)):
+                with SessionLocal() as session:
+                    album = album_crud.get_album_by_name(session, dir)
+                    if album is None:
+                        album = album_crud.create_album(
+                            session,
+                            album_schemas.AlbumCreate(
+                                nome=dir,
+                                descricao="",
+                                publico=True,
+                                passcode="",
+                            ),
+                        )
+
+                for files in os.listdir(os.path.join(settings.IMAGES_BASE_PATH, dir)):
+                    with SessionLocal() as session:
+                        image = imagem_crud.get_image_by_name_and_album_id(
+                            session, files.split(".")[0], album.id
+                        )
+                        if image is None:
+                            hash = blurhash.encode(
+                                Image.open(
+                                    os.path.join(settings.IMAGES_BASE_PATH, dir, files)
+                                ),
+                                x_components=4,
+                                y_components=3,
+                            )
+                            imagem_crud.create_image(
+                                session,
+                                imagem_schemas.ImagemCreate(
+                                    nome=files.split(".")[0],
+                                    descricao="",
+                                    hash=hash,
+                                    album_id=album.id,
+                                ),
+                            )
+
+    return {"message": "Hello World"}
 
 
 # Get public albums
@@ -75,20 +113,60 @@ async def get_albuns_publicos(redis_cache: cache = Depends(cache)):
 
 # Get public photos for an album
 @app.get("/publicos/{album_id}")
-async def get_fotos_publicas(album_id: int):
+async def get_fotos_publicas(album_id: int, redis_cache: cache = Depends(cache)):
     try:
-
-        album = album_crud.get_album(SessionLocal(), album_id)
-        if album is None or not album.publico:
+        cache_key = f"album_{album_id}"
+        cached_album = redis_cache.hgetall(cache_key)
+        cached_album = {
+            k.decode("utf-8"): v.decode("utf-8") for k, v in cached_album.items()
+        }
+        if cached_album:
+            album = cached_album
+        else:
+            album = album_crud.get_album(SessionLocal(), album_id)
+            redis_cache.hset(
+                cache_key,
+                mapping={
+                    "id": str(album.id),
+                    "nome": album.nome,
+                    "publico": "true" if album.publico else "false",
+                },
+            )
+            redis_cache.expire(cache_key, 60)
+        if album is None or not album["publico"]:
             return Response(content="Album não encontrado", status_code=404)
 
-        fotos = imagem_crud.get_by_album_id(SessionLocal(), album_id)
-
+        cache_key = f"imagens_{album_id}"
+        cached_images = redis_cache.get(cache_key)
+        if cached_images:
+            fotos = json.loads(cached_images)
+        else:
+            fotos = imagem_crud.get_by_album_id(SessionLocal(), album_id)
+            fotos = [
+                {
+                    "nome": foto.nome,
+                    "descricao": foto.descricao,
+                    "album_id": foto.album_id,
+                    "id": foto.id,
+                    "hash": foto.hash,
+                }
+                for foto in fotos
+            ]
+            redis_cache.delete(cache_key)
+            redis_cache.set(cache_key, json.dumps(fotos), ex=60)
         return {"fotos": fotos}
     except Exception as e:
         # Log the exception
         print(f"GET /publicos/{album_id}", str(e))
         return Response(content="Erro ao buscar fotos", status_code=500)
+
+
+#  id = Column(Integer, primary_key=True, index=True)
+#     nome = Column(String)
+#     descricao = Column(String)
+#     hash = Column(String)
+#     album_id = Column(Integer, ForeignKey("albuns.id"))
+#     album = relationship("Album", back_populates="imagens")
 
 
 # Get a public photo
@@ -137,6 +215,10 @@ async def get_foto_publica(
             fotos = [
                 {
                     "nome": foto.nome,
+                    "descricao": foto.descricao,
+                    "album_id": foto.album_id,
+                    "id": foto.id,
+                    "hash": foto.hash,
                 }
                 for foto in fotos
             ]
@@ -163,11 +245,14 @@ async def get_foto_publica(
 
 # Create an album
 @app.post("/album")
-async def create_album(album: album_schemas.AlbumCreate):
+async def create_album(
+    album: album_schemas.AlbumCreate, redis_cache: cache = Depends(cache)
+):
     try:
         album_crud.create_album(SessionLocal(), album)
         if not os.path.exists(os.path.join(settings.IMAGES_BASE_PATH, album.nome)):
             os.makedirs(os.path.join(settings.IMAGES_BASE_PATH, album.nome))
+        redis_cache.delete("public_albums")
         return Response(content="Album criado com sucesso", status_code=201)
     except Exception as e:
         # Log the exception
@@ -175,9 +260,8 @@ async def create_album(album: album_schemas.AlbumCreate):
         return Response(content="Erro ao criar album", status_code=500)
 
 
-# Create a photo for an album
 @app.post("/album/{album_id}/{foto}")
-async def create_foto(
+async def add_foto(
     album_id: int,
     foto: str,
     foto_file: Annotated[bytes, File()],

@@ -33,7 +33,7 @@ def delete_image(db: Session, image_id: int):
     return {"message": "Imagem deletada com sucesso!"}
 
 
-def get_by_album_id(db: Session, album_id: int):
+def get_by_album_id(db: Session, album_id: int) -> list[models.Imagem]:
     return db.query(models.Imagem).filter(models.Imagem.album_id == album_id).all()
 
 

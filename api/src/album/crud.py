@@ -15,6 +15,10 @@ def get_album(db: Session, album_id: int) -> models.Album:
     return db.query(models.Album).filter(models.Album.id == album_id).first()
 
 
+def get_album_by_name(db: Session, album_name: str) -> models.Album:
+    return db.query(models.Album).filter(models.Album.nome == album_name).first()
+
+
 def get_albuns_publicos(db: Session, skip: int = 0, limit: int = 100) -> list:
     return (
         db.query(models.Album)
