@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import Optional
 
 
 class AlbumBase(BaseModel):
@@ -10,12 +9,14 @@ class AlbumBase(BaseModel):
 class AlbumCreate(AlbumBase):
     publico: bool
     passcode: str
+    owner_id: int
 
 
 class Album(AlbumBase):
     id: int
     publico: bool
     passcode: str
+    owner_id: int
     cover: str
 
     class Config:

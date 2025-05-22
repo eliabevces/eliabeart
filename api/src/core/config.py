@@ -1,12 +1,14 @@
 import os
 
 from dotenv import load_dotenv
-from pydantic import BaseConfig
+from pydantic import BaseModel, ConfigDict
 
 load_dotenv()
 
 
-class GlobalConfig(BaseConfig):
+class GlobalConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     title: str = os.environ.get("TITLE")
     version: str = "1.0.0"
     # description: str = os.environ.get("DESCRIPTION")
@@ -28,6 +30,10 @@ class GlobalConfig(BaseConfig):
     redis_server: str = os.environ.get("REDIS_SERVER")
     redis_port: int = int(os.environ.get("REDIS_PORT"))
     IMAGES_BASE_PATH: str = os.path.join(os.getcwd(), "imagens")
+
+    JWT_SECRET_KEY: str = os.environ.get("JWT_SECRET_KEY")
+    JWT_ALGORITHM: str = os.environ.get("JWT_ALGORITHM")
+    JWT_EXPIRATION_TIME: int = int(os.environ.get("JWT_EXPIRATION_TIME"))
 
     @property
     def sync_database_url(self) -> str:

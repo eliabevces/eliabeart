@@ -1,8 +1,8 @@
 import os
 from sqlalchemy.orm import Session
-from ..core.config import settings
+from src.core.config import settings
 
-from ..database import models
+from src.database import models
 
 from . import schemas
 
@@ -30,12 +30,8 @@ def get_albuns_publicos(db: Session, skip: int = 0, limit: int = 100) -> list:
 
 
 def create_album(db: Session, album: schemas.AlbumCreate) -> models.Album:
-    db_album = models.Album(
-        nome=album.nome,
-        descricao=album.descricao,
-        publico=album.publico,
-        passcode=album.passcode,
-    )
+    album_data = album.dict()
+    db_album = models.Album(**album_data)
     db.add(db_album)
     db.commit()
     db.refresh(db_album)

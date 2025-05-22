@@ -5,20 +5,24 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import Annotated
 from PIL import Image
+import random
 import io
 import blurhash
+from datetime import datetime
 from src.core.config import settings
 from src.album import crud as album_crud
 from src.imagem import crud as imagem_crud
 from src.database.database import get_db
 from src.imagem import schemas as imagem_schemas
-from src.lib.lib import get_album, get_all_images, delete_cache
+import concurrent.futures
+from src.database.database import SessionLocal
+from src.lib.lib import get_album, get_all_images, delete_cache, get_all_albums
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def validate_album(album_id: int, db: Session) -> dict:
+def validate_album(album_id: int, db: Session = Depends(get_db)) -> dict:
     album = get_album(db, album_id)
     if album is None or not album.get("publico", False):
         raise HTTPException(status_code=404, detail="Album não encontrado")
@@ -58,7 +62,6 @@ async def add_foto(
 ):
     album = validate_album(album_id, db)
     album_path = os.path.join(settings.IMAGES_BASE_PATH, album["nome"])
-    # NAO ACEITAR
     os.makedirs(album_path, exist_ok=True)
 
     foto_name = foto.split(".")[0]
@@ -109,31 +112,55 @@ async def delete_foto(album_id: int, foto: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Erro ao deletar foto")
 
 
-@router.get("/resetPhotos/{album_id}")
+@router.patch("/resetPhotos/{album_id}")
 async def reset_photos(album_id: int, db: Session = Depends(get_db)):
     try:
         imagem_crud.delete_all_images_by_album_id(db, album_id)
         album = album_crud.get_album(db, album_id)
         album_path = os.path.join(settings.IMAGES_BASE_PATH, album.nome)
-        images_in_db = imagem_crud.get_by_album_id(db, album_id)
-
         fotos_in_path = os.listdir(album_path)
 
-        for foto in fotos_in_path:
-            nome = foto.split(".")[0]
-            if foto not in [foto.nome for foto in images_in_db]:
+        def process_foto(foto):
+            session = SessionLocal()
+            try:
+                nome = foto.split(".")[0]
+                with Image.open(os.path.join(album_path, foto)) as image:
+                    image_hash = blurhash.encode(image, x_components=4, y_components=3)
                 imagem_crud.create_image(
-                    db,
+                    session,
                     imagem_schemas.ImagemCreate(
                         nome=nome,
                         descricao="",
-                        hash="",
+                        hash=image_hash,
                         album_id=album_id,
                     ),
                 )
+                session.commit()
+            except Exception as e:
+                logger.error(f"Error processing photo {foto}: {e}")
+            finally:
+                session.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+            executor.map(process_foto, fotos_in_path)
 
         fotos_in_db = imagem_crud.get_by_album_id(db, album_id)
         return {"fotos": [foto.nome for foto in fotos_in_db]}
     except Exception as e:
         logger.error(f"Error resetting photos: {e}")
         raise HTTPException(status_code=500, detail="Erro ao atualizar fotos")
+
+
+@router.get("/random")
+async def get_random_photo(db: Session = Depends(get_db)):
+    try:
+        albums = get_all_albums(db)
+        if not albums:
+            raise HTTPException(status_code=404, detail="Nenhum álbum encontrado")
+        album = random.choice(albums)
+        fotos = get_all_images(db, album["id"])
+        foto = random.choice(fotos)
+        return foto
+    except Exception as e:
+        logger.error(f"Error getting random photo: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao obter foto aleatória")

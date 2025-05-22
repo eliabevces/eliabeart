@@ -32,12 +32,7 @@ def get_all_albums(db: Session) -> List[Dict[str, Any]]:
     if not albums:
         albums = album_crud.get_albuns_publicos(db)
         albums = [
-            {
-                "id": album.id,
-                "nome": album.nome,
-                "publico": album.publico,
-                "cover": album.cover,
-            }
+            {col: getattr(album, col) for col in album.__table__.columns.keys()}
             for album in albums
         ]
         set_cached_data(cache_key, albums)

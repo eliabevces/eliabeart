@@ -1,8 +1,8 @@
 import os
 from sqlalchemy.orm import Session
-from ..core.config import settings
+from src.core.config import settings
 
-from ..database import models
+from src.database import models
 
 from . import schemas
 
@@ -20,7 +20,7 @@ def get_image_by_name_and_album_id(db: Session, nome: str, album_id: int):
 
 
 def create_image(db: Session, image: schemas.ImagemCreate):
-    db_image = models.Imagem(**image.dict())
+    db_image = models.Imagem(**image.model_dump())
     db.add(db_image)
     db.commit()
     db.refresh(db_image)
@@ -38,13 +38,9 @@ def get_by_album_id(db: Session, album_id: int) -> list[models.Imagem]:
 
 
 def update_imagem(db: Session, image: schemas.Imagem):
+    db_image = models.Imagem(**image.model_dump())
     db.query(models.Imagem).filter(models.Imagem.id == image.id).update(
-        {
-            "nome": image.nome,
-            "descricao": image.descricao,
-            "hash": image.hash,
-            "album_id": image.album_id,
-        }
+        db_image.__dict__
     )
     db.commit()
     return db.query(models.Imagem).filter(models.Imagem.id == image.id).first()
