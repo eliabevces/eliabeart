@@ -4,18 +4,13 @@ from fastapi import Response, File, APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import Annotated
-from PIL import Image
 import random
-import io
-import blurhash
 from datetime import datetime
 from src.core.config import settings
 from src.album import crud as album_crud
 from src.imagem import crud as imagem_crud
 from src.database.database import get_db
-from src.imagem import schemas as imagem_schemas
-import concurrent.futures
-from src.database.database import SessionLocal
+from src.celery.tasks import process_and_save_photo
 from src.lib.lib import get_album, get_all_images, delete_cache, get_all_albums
 
 router = APIRouter()
@@ -65,29 +60,14 @@ async def add_foto(
     os.makedirs(album_path, exist_ok=True)
 
     foto_name = foto.split(".")[0]
-    image_path = os.path.join(album_path, f"{foto_name}.jpg")
 
     if imagem_crud.get_image_by_name_and_album_id(db, foto_name, album_id):
         raise HTTPException(status_code=409, detail="Foto já existe")
 
-    try:
-        with Image.open(io.BytesIO(foto_file)) as image:
-            image.save(image_path)
-            image.thumbnail((32, 32))
-            image_hash = blurhash.encode(image, x_components=4, y_components=3)
-
-        imagem = imagem_schemas.ImagemCreate(
-            nome=foto_name,
-            descricao="",
-            hash=image_hash,
-            album_id=album_id,
-        )
-        imagem_crud.create_image(db, imagem)
-        delete_cache(f"album_{album_id}_images")
-        return Response(content="Foto criada com sucesso", status_code=201)
-    except Exception as e:
-        logger.error(f"Error adding photo: {e}")
-        raise HTTPException(status_code=500, detail="Erro ao criar foto")
+    # Queue the task
+    process_and_save_photo.delay(album_id, foto_name, foto_file, album_path)
+    delete_cache(f"album_{album_id}_images")
+    return Response(content="Foto enviada para processamento", status_code=202)
 
 
 @router.delete("/{album_id}/{foto}")
@@ -120,32 +100,18 @@ async def reset_photos(album_id: int, db: Session = Depends(get_db)):
         album_path = os.path.join(settings.IMAGES_BASE_PATH, album.nome)
         fotos_in_path = os.listdir(album_path)
 
-        def process_foto(foto):
-            session = SessionLocal()
-            try:
-                nome = foto.split(".")[0]
-                with Image.open(os.path.join(album_path, foto)) as image:
-                    image_hash = blurhash.encode(image, x_components=4, y_components=3)
-                imagem_crud.create_image(
-                    session,
-                    imagem_schemas.ImagemCreate(
-                        nome=nome,
-                        descricao="",
-                        hash=image_hash,
-                        album_id=album_id,
-                    ),
-                )
-                session.commit()
-            except Exception as e:
-                logger.error(f"Error processing photo {foto}: {e}")
-            finally:
-                session.close()
+        for foto in fotos_in_path:
+            foto_path = os.path.join(album_path, foto)
+            if not os.path.isfile(foto_path):
+                continue
+            nome = foto.split(".")[0]
+            with open(foto_path, "rb") as f:
+                foto_bytes = f.read()
+            # Queue the Celery task for each photo
+            process_and_save_photo.delay(album_id, nome, foto_bytes, album_path)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-            executor.map(process_foto, fotos_in_path)
-
-        fotos_in_db = imagem_crud.get_by_album_id(db, album_id)
-        return {"fotos": [foto.nome for foto in fotos_in_db]}
+        # Optionally, you can return the list of files queued for processing
+        return {"queued_photos": fotos_in_path}
     except Exception as e:
         logger.error(f"Error resetting photos: {e}")
         raise HTTPException(status_code=500, detail="Erro ao atualizar fotos")

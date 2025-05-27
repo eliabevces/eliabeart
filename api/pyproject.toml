@@ -22,6 +22,7 @@ dependencies = [
     "psycopg2-binary (>=2.9.10,<3.0.0)",
     "passlib (>=1.7.4,<2.0.0)",
     "blurhash-python (>=1.2.2,<2.0.0)",
+    "celery (>=5.5.2,<6.0.0)",
 ]
 
 

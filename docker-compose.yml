@@ -17,6 +17,32 @@ services:
     depends_on:
       - db
       - redis
+
+  celery:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: celery_worker
+    command: celery -A src.celery.tasks worker --loglevel=info
+    volumes:
+      - ./api:/app
+      - ./api/imagens:/app/imagens
+    env_file:
+      - ./api/.env
+    depends_on:
+      - db
+      - redis
+
+  flower:
+    image: mher/flower
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - celery 
   db:
     image: postgres:13
     container_name: postgres_container
@@ -26,10 +52,12 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+
   redis:
     image: redis:6
     container_name: redis_container
     ports:
       - "6379:6379"
+
 volumes:
   postgres_data:
