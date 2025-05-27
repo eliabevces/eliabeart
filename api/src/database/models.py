@@ -24,6 +24,8 @@ class Imagem(Base):
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String)
     descricao = Column(String)
+    width = Column(Integer)
+    height = Column(Integer)
     hash = Column(String)
     album_id = Column(Integer, ForeignKey("albuns.id"))
     album = relationship("Album", back_populates="imagens")

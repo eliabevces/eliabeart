@@ -5,6 +5,8 @@ from typing import Optional
 class ImagemBase(BaseModel):
     nome: str
     descricao: str
+    width: int
+    height: int
 
 
 class ImagemCreate(ImagemBase):

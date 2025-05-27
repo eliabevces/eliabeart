@@ -75,11 +75,9 @@ def get_all_images(db: Session, album_id: int) -> List[Dict[str, Any]]:
         images = imagem_crud.get_by_album_id(db, album_id)
         images = [
             {
-                "nome": image.nome,
-                "descricao": image.descricao,
-                "album_id": image.album_id,
-                "id": image.id,
-                "hash": image.hash,
+                col: getattr(image, col)
+                for col in image.__table__.columns.keys()
+                if col != "id"
             }
             for image in images
         ]
