@@ -35,6 +35,11 @@ class GlobalConfig(BaseModel):
     JWT_ALGORITHM: str = os.environ.get("JWT_ALGORITHM")
     JWT_EXPIRATION_TIME: int = int(os.environ.get("JWT_EXPIRATION_TIME"))
 
+    KEYCLOAK_SERVER_URL: str = os.environ.get("KEYCLOAK_SERVER_URL")
+    KEYCLOAK_CLIENT_ID: str = os.environ.get("KEYCLOAK_CLIENT_ID")
+    KEYCLOAK_REALM_NAME: str = os.environ.get("KEYCLOAK_REALM_NAME")
+    KEYCLOAK_CLIENT_SECRET_KEY: str = os.environ.get("KEYCLOAK_CLIENT_SECRET_KEY")
+
     @property
     def sync_database_url(self) -> str:
         return f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_server}:{self.postgres_port}/{self.postgres_db}"

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.database import models
 from src.database.database import engine
-from src.routes import albums, images, auth, users
+from src.routes import albums, images, auth
 
 app = FastAPI(
     title="Eliabeart API",
@@ -14,7 +14,7 @@ models.Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,7 +22,6 @@ app.add_middleware(
 
 app.include_router(albums.router, prefix="/albums", tags=["Albums"])
 app.include_router(images.router, prefix="/images", tags=["Images"])
-app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 
 
