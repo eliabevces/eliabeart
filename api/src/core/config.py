@@ -10,8 +10,9 @@ class GlobalConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title: str = os.environ.get("TITLE")
-    version: str = "1.0.0"
-    # description: str = os.environ.get("DESCRIPTION")
+    description: str = os.environ.get("DESCRIPTION")
+    version: str = os.environ.get("VERSION", "1.0.0")
+    cors_origins: str = os.environ.get("CORS_ORIGINS")
     # openapi_prefix: str = os.environ.get("OPENAPI_PREFIX")
     docs_url: str = "/docs"
     redoc_url: str = "/redoc"
@@ -39,6 +40,12 @@ class GlobalConfig(BaseModel):
     KEYCLOAK_CLIENT_ID: str = os.environ.get("KEYCLOAK_CLIENT_ID")
     KEYCLOAK_REALM_NAME: str = os.environ.get("KEYCLOAK_REALM_NAME")
     KEYCLOAK_CLIENT_SECRET_KEY: str = os.environ.get("KEYCLOAK_CLIENT_SECRET_KEY")
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        if self.cors_origins:
+            return [origin.strip() for origin in self.cors_origins.split(",")]
+        return []
 
     @property
     def sync_database_url(self) -> str:

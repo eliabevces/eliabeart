@@ -10,10 +10,7 @@ class Album(Base):
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String, unique=True)
     descricao = Column(String)
-    publico = Column(Boolean)
-    passcode = Column(String)
     cover = Column(String)
-    owner_id = Column(String)
     imagens = relationship("Imagem", back_populates="album")
 
 
