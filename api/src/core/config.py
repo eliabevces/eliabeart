@@ -36,10 +36,10 @@ class GlobalConfig(BaseModel):
     JWT_ALGORITHM: str = os.environ.get("JWT_ALGORITHM")
     JWT_EXPIRATION_TIME: int = int(os.environ.get("JWT_EXPIRATION_TIME"))
 
-    KEYCLOAK_SERVER_URL: str = os.environ.get("KEYCLOAK_SERVER_URL")
-    KEYCLOAK_CLIENT_ID: str = os.environ.get("KEYCLOAK_CLIENT_ID")
-    KEYCLOAK_REALM_NAME: str = os.environ.get("KEYCLOAK_REALM_NAME")
-    KEYCLOAK_CLIENT_SECRET_KEY: str = os.environ.get("KEYCLOAK_CLIENT_SECRET_KEY")
+    KEYCLOAK_SERVER_URL: str = os.environ.get("KEYCLOAK_SERVER_URL") or Field(..., description="Keycloak server URL is required")
+    KEYCLOAK_CLIENT_ID: str = os.environ.get("KEYCLOAK_CLIENT_ID") or Field(..., description="Keycloak client ID is required")
+    KEYCLOAK_REALM_NAME: str = os.environ.get("KEYCLOAK_REALM_NAME") or Field(..., description="Keycloak realm name is required")
+    KEYCLOAK_CLIENT_SECRET_KEY: str = os.environ.get("KEYCLOAK_CLIENT_SECRET_KEY") or Field(..., description="Keycloak client secret key is required")
 
     @property
     def cors_origins_list(self) -> list[str]:
