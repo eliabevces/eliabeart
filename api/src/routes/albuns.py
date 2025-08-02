@@ -104,9 +104,8 @@ async def update_album(album_id: int, db: Session = Depends(get_db), current_use
             process_and_save_image.delay(album.id, image, album_folder)
         cache_key = f"album_{album_id}_images"
         cover_name = images[0] 
-        if cover_name:
-            album.cover = cover_name
-            album_crud.update_cover_image(db, album_id, cover_name)
+        album.cover = cover_name
+        album_crud.update_cover_image(db, album_id, cover_name)
         delete_cache(cache_key)
         return {"message": "Album atualizado com sucesso"}
     except Exception as e:
