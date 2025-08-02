@@ -53,16 +53,15 @@ async def create_album(album: album_schemas.AlbumBase, db: Session = Depends(get
 @router.patch("/{album_id}/cover/{image}")
 async def update_cover_image(album_id: int, image: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     try:
-        image_name = image  # Store the original image string
-        image = imagem_crud.get_image_by_name_and_album_id(db, image_name, album_id)
-        if not image:
+        image_db = imagem_crud.get_image_by_name_and_album_id(db, image, album_id)
+        if not image_db:
             raise HTTPException(status_code=404, detail="Imagem não encontrada")
-        album = album_crud.update_cover_image(db, album_id, image.nome)
+        album = album_crud.update_cover_image(db, album_id, image_db.nome)
         if not album:
             raise HTTPException(status_code=404, detail="Album não encontrado")
         return Response(content="Capa adicionada com sucesso", status_code=200)
     except Exception as e:
-        logger.error("POST /albuns/%d/cover/%s - %s", album_id, image_name, str(e))
+        logger.error("POST /albuns/%d/cover/%s - %s", album_id, image, str(e))
         raise HTTPException(status_code=500, detail="Erro ao adicionar capa")
 
 
