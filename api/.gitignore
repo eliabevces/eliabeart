@@ -44,7 +44,6 @@ coverage.xml
 
 # Environments
 .env
-.env.*
 
 # Docker
 *.pid
