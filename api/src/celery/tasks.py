@@ -9,15 +9,16 @@ from src.celery.celery import celery_app
 
 
 @celery_app.task
-def process_and_save_photo(album_id, foto_name, foto_bytes, album_path):
+def process_and_save_image(album_id, image_name, album_path):
     session = SessionLocal()
     try:
-        image_path = os.path.join(album_path, f"{foto_name}.jpg")
-        with Image.open(io.BytesIO(foto_bytes)) as image:
-            image.save(image_path)
+        image_path = os.path.join(album_path, f"{image_name}.jpg")
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Imagem {image_name} não encontrada no álbum {album_id}")
+        with Image.open(image_path) as image:
             image_hash = blurhash.encode(image, x_components=4, y_components=3)
             imagem = imagem_schemas.ImagemCreate(
-                nome=foto_name,
+                nome=image_name,
                 descricao="",
                 hash=image_hash,
                 album_id=album_id,

@@ -1,63 +1,35 @@
-from passlib.context import CryptContext
-from src.user.crud import get_user_by_username
-from datetime import datetime, timedelta, timezone
-from src.core.config import settings
-import jwt
-from fastapi import Depends, HTTPException, status
-from jwt.exceptions import InvalidTokenError
-from typing import Annotated
-from fastapi.security import OAuth2PasswordBearer
-from .schemas import TokenData
-from .utils import verify_password
-from sqlalchemy.orm import Session
-from src.database.database import get_db
+from fastapi import APIRouter, HTTPException, Request, status, Depends
+from starlette.responses import JSONResponse
+from src.core.keycloak import keycloak_openid
+from keycloak.exceptions import KeycloakAuthenticationError
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+security = HTTPBearer()
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-def authenticate_user(username: str, password: str, db: Session = Depends(get_db)):
-    user = get_user_by_username(db, username)
-    if not user:
-        return False
-    if not verify_password(password, user.password):
-        return False
-    return user
-
-
-def create_access_token(data: dict):
-    to_encode = data.copy()
-    expires_delta = timedelta(minutes=settings.JWT_EXPIRATION_TIME)
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(
-        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
-    )
-    return encoded_jwt
-
-
-async def get_current_user(db, token: Annotated[str, Depends(oauth2_scheme)]):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+def get_current_user(token: HTTPAuthorizationCredentials = Depends(security)):
+    """Validate the current user by decoding the JWT token.
+    Args:
+        token (HTTPAuthorizationCredentials): The JWT token from the request header.
+    Returns:
+        JSONResponse: The decoded token if valid.
+    Raises:
+        HTTPException: If the token is missing, invalid, or expired.
+    """
     try:
-        payload = jwt.decode(
-            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        decoded_token = keycloak_openid.decode_token(token.credentials)
+        return decoded_token
+    except KeycloakAuthenticationError as e:
+        detail = str(e)
+        if "expired" in detail.lower():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired."
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token."
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while decoding the token.",
         )
-        username = payload.get("username")
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except InvalidTokenError:
-        raise credentials_exception
-    user = get_user_by_username(db, username=token_data.username)
-    if user is None:
-        raise credentials_exception
-    return user

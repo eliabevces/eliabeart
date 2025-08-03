@@ -32,6 +32,13 @@ def delete_image(db: Session, image_id: int):
     db.commit()
     return {"message": "Imagem deletada com sucesso!"}
 
+def delete_images_by_names_and_album_id(db: Session, names: list[str], album_id: int):
+    db.query(models.Imagem).filter(
+        models.Imagem.nome.in_(names), models.Imagem.album_id == album_id
+    ).delete(synchronize_session=False)
+    db.commit()
+    return {"message": "Imagens deletadas com sucesso!"}
+
 
 def get_by_album_id(db: Session, album_id: int) -> list[models.Imagem]:
     return db.query(models.Imagem).filter(models.Imagem.album_id == album_id).all()

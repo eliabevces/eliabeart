@@ -2,28 +2,28 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.database import models
 from src.database.database import engine
-from src.routes import albums, images, auth, users
+from src.routes import albuns, images
+from src.core.config import settings
+
 
 app = FastAPI(
-    title="Eliabeart API",
-    description="API for managing albums and images",
-    version="1.0.0",
+    title=settings.title,
+    description=settings.description,
+    version=settings.version,
 )
 
 models.Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(albums.router, prefix="/albums", tags=["Albums"])
+app.include_router(albuns.router, prefix="/albuns", tags=["albuns"])
 app.include_router(images.router, prefix="/images", tags=["Images"])
-app.include_router(users.router, prefix="/users", tags=["Users"])
-app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 
 
 @app.get("/", tags=["Root"])
