@@ -30,7 +30,7 @@ class GlobalConfig(BaseModel):
 
     redis_server: str = os.environ.get("REDIS_SERVER")
     redis_port: int = int(os.environ.get("REDIS_PORT"))
-    IMAGES_BASE_PATH: str = os.path.join(os.getcwd(), "imagens")
+    IMAGES_BASE_PATH: str = os.environ.get("IMAGES_BASE_PATH", "/app/imagens")
 
     JWT_SECRET_KEY: str = os.environ.get("JWT_SECRET_KEY")
     JWT_ALGORITHM: str = os.environ.get("JWT_ALGORITHM")
