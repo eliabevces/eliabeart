@@ -4,6 +4,7 @@ import { getImagesByAlbum } from "@/app/lib/images";
 import { getObject, imageKey } from "@/app/lib/s3";
 import { processAlbumImages } from "@/app/lib/image-processing";
 import { cache } from "@/app/lib/cache";
+import { s3Semaphore } from "@/app/lib/concurrency";
 
 // GET /api/images/[album_id]/[image] — serve image file from S3
 export async function GET(
@@ -45,7 +46,7 @@ export async function GET(
     const key = imageKey(album.nome, image);
     let imageBuffer: Buffer;
     try {
-      imageBuffer = await getObject(key);
+      imageBuffer = await s3Semaphore.run(() => getObject(key));
     } catch {
       return NextResponse.json(
         { error: "Arquivo de imagem não encontrado no S3" },

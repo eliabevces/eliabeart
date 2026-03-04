@@ -5,6 +5,11 @@ const nextConfig = {
   images: {
     remotePatterns: [],
     formats: ["image/avif"],
+    localPatterns: [
+      {
+        pathname: "/api/images/**",
+      },
+    ],
   },
 };
 
