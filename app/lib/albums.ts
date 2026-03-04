@@ -35,8 +35,11 @@ async function writeAlbums(albums: AlbumData[]): Promise<void> {
  * - Sets cover to the first image for new albums.
  */
 async function syncAlbumsWithS3(): Promise<{ albums: AlbumData[]; newAlbums: AlbumData[] }> {
+  console.log("[albums] syncAlbumsWithS3: starting sync...");
   const s3Prefixes = await listBucketPrefixes();
+  console.log("[albums] S3 prefixes found:", s3Prefixes);
   let albums = await readAlbums();
+  console.log("[albums] Existing albums:", albums.map(a => a.nome));
 
   const existingNames = new Set(albums.map((a) => a.nome));
   const s3Names = new Set(s3Prefixes);

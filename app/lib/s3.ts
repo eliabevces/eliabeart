@@ -179,28 +179,36 @@ export async function listBucketPrefixes(): Promise<string[]> {
   const prefixes: string[] = [];
   let continuationToken: string | undefined;
 
-  do {
-    const command = new ListObjectsV2Command({
-      Bucket: BUCKET,
-      Delimiter: "/",
-      ContinuationToken: continuationToken,
-    });
-    const response = await s3.send(command);
+  console.log("[s3] listBucketPrefixes: endpoint =", config.S3_ENDPOINT, "bucket =", BUCKET);
 
-    if (response.CommonPrefixes) {
-      for (const prefix of response.CommonPrefixes) {
-        if (prefix.Prefix) {
-          const name = prefix.Prefix.replace(/\/$/, "");
-          if (name && !name.startsWith("_")) {
-            prefixes.push(name);
+  try {
+    do {
+      const command = new ListObjectsV2Command({
+        Bucket: BUCKET,
+        Delimiter: "/",
+        ContinuationToken: continuationToken,
+      });
+      const response = await s3.send(command);
+
+      if (response.CommonPrefixes) {
+        for (const prefix of response.CommonPrefixes) {
+          if (prefix.Prefix) {
+            const name = prefix.Prefix.replace(/\/$/, "");
+            if (name && !name.startsWith("_")) {
+              prefixes.push(name);
+            }
           }
         }
       }
-    }
 
-    continuationToken = response.NextContinuationToken;
-  } while (continuationToken);
+      continuationToken = response.NextContinuationToken;
+    } while (continuationToken);
+  } catch (error) {
+    console.error("[s3] listBucketPrefixes FAILED:", error);
+    throw error;
+  }
 
+  console.log("[s3] listBucketPrefixes result:", prefixes);
   return prefixes;
 }
 
