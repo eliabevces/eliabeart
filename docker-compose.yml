@@ -10,6 +10,9 @@ services:
       - .env
     depends_on:
       - minio
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   minio:
     image: minio/minio
@@ -23,6 +26,15 @@ services:
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared_tunnel
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
+    restart: unless-stopped
 
 volumes:
   minio_data:

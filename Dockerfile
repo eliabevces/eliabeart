@@ -16,6 +16,9 @@ COPY . .
 
 RUN npm run build
 
+# Ensure public dir exists (Next.js requires it even if empty)
+RUN mkdir -p /app/public
+
 # Production image, copy all files and run next
 FROM base AS runner
 WORKDIR /app
