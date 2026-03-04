@@ -194,7 +194,7 @@ export async function listBucketPrefixes(): Promise<string[]> {
         for (const prefix of response.CommonPrefixes) {
           if (prefix.Prefix) {
             const name = prefix.Prefix.replace(/\/$/, "");
-            if (name && !name.startsWith("_")) {
+            if (name) {
               prefixes.push(name);
             }
           }

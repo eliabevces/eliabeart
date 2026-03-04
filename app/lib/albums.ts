@@ -1,13 +1,20 @@
+import crypto from "crypto";
 import { cache } from "./cache";
 import { config } from "./config";
 import { getJSON, putJSON, deletePrefix, listBucketPrefixes, listAlbumImages } from "./s3";
 import { deleteImagesByAlbum, readImagesJson } from "./images";
+
+function generateAlbumCode(): string {
+  return crypto.randomBytes(6).toString("hex"); // 12-char hex code
+}
 
 export interface AlbumData {
   id: number;
   nome: string;
   descricao: string | null;
   cover: string | null;
+  privado: boolean;
+  codigo: string | null;
 }
 
 const ALBUMS_KEY = "_albums.json";
@@ -59,11 +66,15 @@ async function syncAlbumsWithS3(): Promise<{ albums: AlbumData[]; newAlbums: Alb
       const images = await listAlbumImages(name);
       if (images.length > 0) {
         maxId++;
+        // Folders starting with "_" are imported as private
+        const isPrivate = name.startsWith("_");
         const newAlbum: AlbumData = {
           id: maxId,
           nome: name,
           descricao: null,
           cover: images[0],
+          privado: isPrivate,
+          codigo: isPrivate ? generateAlbumCode() : null,
         };
         albums.push(newAlbum);
         newAlbums.push(newAlbum);
@@ -90,6 +101,14 @@ async function syncAlbumsWithS3(): Promise<{ albums: AlbumData[]; newAlbums: Alb
         album.cover = images[0];
         changed = true;
       }
+    }
+  }
+
+  // Fix private albums that are missing a code
+  for (const album of albums) {
+    if (album.privado && !album.codigo) {
+      album.codigo = generateAlbumCode();
+      changed = true;
     }
   }
 
@@ -141,6 +160,8 @@ export async function createAlbum(
     nome,
     descricao,
     cover: null,
+    privado: false,
+    codigo: null,
   };
 
   albums.push(newAlbum);
@@ -179,4 +200,61 @@ export async function updateCover(
   album.cover = imageName;
   await writeAlbums(albums);
   return true;
+}
+
+/**
+ * Get only public albums (non-private).
+ */
+export async function getPublicAlbums(): Promise<AlbumData[]> {
+  const albums = await getAlbums();
+  return albums.filter((a) => !a.privado);
+}
+
+/**
+ * Toggle an album's privacy. When making private, generates a code.
+ * When making public, removes the code.
+ */
+export async function toggleAlbumPrivacy(
+  albumId: number,
+  privado: boolean
+): Promise<{ success: boolean; codigo?: string }> {
+  const albums = await readAlbums();
+  const album = albums.find((a) => a.id === albumId);
+  if (!album) return { success: false };
+
+  album.privado = privado;
+  album.codigo = privado ? generateAlbumCode() : null;
+
+  await writeAlbums(albums);
+  return { success: true, codigo: album.codigo ?? undefined };
+}
+
+/**
+ * Validate access code for a private album.
+ * Returns true if album is public or code matches.
+ */
+export async function validateAlbumCode(
+  albumId: number,
+  code: string | null
+): Promise<boolean> {
+  const album = await getAlbum(albumId);
+  if (!album) return false;
+  if (!album.privado) return true;
+  if (!code) return false;
+  return album.codigo === code;
+}
+
+/**
+ * Regenerate the access code for a private album.
+ */
+export async function regenerateAlbumCode(
+  albumId: number
+): Promise<{ success: boolean; codigo?: string }> {
+  const albums = await readAlbums();
+  const album = albums.find((a) => a.id === albumId);
+  if (!album || !album.privado) return { success: false };
+
+  album.codigo = generateAlbumCode();
+  await writeAlbums(albums);
+  return { success: true, codigo: album.codigo };
 }

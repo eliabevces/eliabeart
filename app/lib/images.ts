@@ -1,7 +1,7 @@
 import { cache } from "./cache";
 import { config } from "./config";
 import { getJSON, putJSON, deleteObject } from "./s3";
-import { getAlbum, getAlbums } from "./albums";
+import { getAlbum, getAlbums, getPublicAlbums } from "./albums";
 
 export interface ImageData {
   nome: string;
@@ -51,7 +51,7 @@ export async function getImagesByAlbum(albumId: number): Promise<ImageData[]> {
 }
 
 export async function getRandomImage(): Promise<ImageData | null> {
-  const albums = await getAlbums();
+  const albums = await getPublicAlbums();
   if (albums.length === 0) return null;
 
   // Collect all images across all albums

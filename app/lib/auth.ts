@@ -37,18 +37,19 @@ export async function validateToken(
   const token = authHeader.slice(7);
 
   try {
-    const audience = config.KEYCLOAK_CLIENT_ID;
-    if (!audience) {
-      throw new Error("KEYCLOAK_CLIENT_ID is not configured");
-    }
-
     const jwks = await getJWKS();
     const keySet = jose.createLocalJWKSet(jwks);
 
+    // Verify signature and issuer only — Keycloak issues tokens with aud: "account"
+    // instead of the client ID, so we validate azp (authorized party) manually.
     const { payload } = await jose.jwtVerify(token, keySet, {
       issuer: `${config.KEYCLOAK_SERVER_URL}/realms/${config.KEYCLOAK_REALM_NAME}`,
-      audience,
     });
+
+    // Ensure the token was issued for this client
+    if (config.KEYCLOAK_CLIENT_ID && payload.azp !== config.KEYCLOAK_CLIENT_ID) {
+      return null;
+    }
 
     return payload;
   } catch {

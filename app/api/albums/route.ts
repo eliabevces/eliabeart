@@ -4,7 +4,7 @@ import { requireAuth } from "@/app/lib/auth";
 import { processAlbumImages } from "@/app/lib/image-processing";
 import { cache } from "@/app/lib/cache";
 
-// GET /api/albums — list all albums (auto-discovers from S3)
+// GET /api/albums — list all public albums (auto-discovers from S3)
 export async function GET() {
   try {
     // Process any new albums that need image processing
@@ -18,7 +18,9 @@ export async function GET() {
     }
 
     const albums = await getAlbums();
-    return NextResponse.json({ albuns: albums });
+    // Strip the codigo field before returning (never expose to public listing)
+    const safeAlbums = albums.map(({ codigo, ...rest }) => rest);
+    return NextResponse.json({ albuns: safeAlbums });
   } catch (error) {
     console.error("GET /api/albums error:", error);
     return NextResponse.json(

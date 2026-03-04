@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getImagesByAlbum } from "@/app/lib/images";
-import { getAlbum } from "@/app/lib/albums";
+import { getAlbum, validateAlbumCode } from "@/app/lib/albums";
 import { processAlbumImages } from "@/app/lib/image-processing";
 import { cache } from "@/app/lib/cache";
 
 // GET /api/images/[album_id] — list images for an album
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ album_id: string }> }
 ) {
   try {
@@ -22,6 +22,18 @@ export async function GET(
         { error: "Album não encontrado" },
         { status: 404 }
       );
+    }
+
+    // Check private album access
+    if (album.privado) {
+      const code = request.nextUrl.searchParams.get("code");
+      const isValid = await validateAlbumCode(albumId, code);
+      if (!isValid) {
+        return NextResponse.json(
+          { error: "Código de acesso inválido", privado: true },
+          { status: 403 }
+        );
+      }
     }
 
     let images = await getImagesByAlbum(albumId);
