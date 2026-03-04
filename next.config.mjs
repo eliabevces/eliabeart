@@ -1,34 +1,10 @@
-import dotenv from "dotenv";
-
-dotenv.config();
-
-// Extract hostname and protocol from API URL
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-let remotePattern;
-
-try {
-  const url = new URL(apiUrl);
-  remotePattern = {
-    protocol: url.protocol.replace(':', ''), // Remove the trailing colon
-    hostname: url.hostname,
-  };
-} catch (error) {
-  console.error("Invalid NEXT_PUBLIC_API_URL:", apiUrl, error);
-  // Fallback to localhost
-  remotePattern = {
-    protocol: "http",
-    hostname: "localhost",
-    port: "8000",
-  };
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
+  // Images are now served via internal API routes — no remote patterns needed.
   images: {
-    remotePatterns: [remotePattern],
-  },
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    remotePatterns: [],
+    formats: ["image/avif"],
   },
 };
 

@@ -14,7 +14,7 @@ const Navbar: React.FC = () => {
   return (
     <nav className="flex items-center justify-between px-8 py-4 bg-gray-200 text-gray-800 shadow-lg w-full max-w-full min-w-full">
       <div className="flex items-center">
-        <Link href="/" legacyBehavior>
+        <Link href="/">
           <Image
             src={PhotoIcon}
             alt="Logo"

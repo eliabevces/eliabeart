@@ -5,7 +5,7 @@ interface PhotoModalProps {
   isOpen: boolean;
   onClose: () => void;
   index: number;
-  images: { nome: string; hash: string; width: number; height: number }[];
+  images: { nome: string; hash: string | null; width: number | null; height: number | null }[];
   album_id: string;
 }
 
@@ -137,8 +137,7 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
             e.stopPropagation();
             setDropdownOpen(false);
             const newTab = window.open(
-              process.env.NEXT_PUBLIC_API_URL +
-                `/images/${album_id}/${images[index].nome}`,
+              `/api/images/${album_id}/${images[index].nome}`,
               "_blank"
             );
             if (newTab) {
@@ -155,8 +154,8 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
           descricao={""}
           hash={images[index].hash}
           album_id={Number(album_id)}
-          width={images[index].width}
-          height={images[index].height}
+          width={images[index].width || 0}
+          height={images[index].height || 0}
           className="object-contain w-full h-full max-w-[90vw] max-h-[90vh] md:max-w-2xl md:max-h-2xl"
         />
       </div>

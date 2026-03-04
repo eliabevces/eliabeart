@@ -1,15 +1,15 @@
 "use client";
 import React from "react";
 import Photo from "@components/Photo";
-import { random_photo } from "@lib/api";
+import { random_photo } from "@lib/api-client";
 import { Foto } from "../types/Foto";
 
 const MAX_WIDTH_FACTOR = 0.8; // 80vw
 const MAX_HEIGHT_FACTOR = 0.8; // 80vh
 
 const Random: React.FC = () => {
-  const [foto, setFoto] = React.useState<Omit<Foto, "id">>(
-    {} as Omit<Foto, "id">
+  const [foto, setFoto] = React.useState<Foto>(
+    {} as Foto
   );
   const fetchedRef = React.useRef(false);
 
@@ -68,7 +68,7 @@ const Random: React.FC = () => {
         <Photo
           imageName={foto.nome}
           descricao={foto.descricao || ""}
-          hash={foto.hash}
+          hash={foto.hash || undefined}
           album_id={foto.album_id}
           width={constrainedDimensions.width}
           height={constrainedDimensions.height}

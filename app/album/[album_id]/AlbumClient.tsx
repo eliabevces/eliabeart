@@ -28,7 +28,7 @@ const AlbumClient: React.FC<AlbumClientProps> = ({ images, album_id }) => {
   return (
     <div className="relative min-h-[80vh] w-[80vw] mx-auto">
       <div
-        className="  columns-1
+        className="columns-1
         sm:columns-2
         md:columns-3
         lg:columns-4
@@ -38,32 +38,40 @@ const AlbumClient: React.FC<AlbumClientProps> = ({ images, album_id }) => {
         pb-20
         font-[family-name:var(--font-geist-sans)]"
       >
-        {images?.map(({ nome: imageName }, index) => (
-          <div key={index} className="mb-6 break-inside-avoid">
-            <div
-              className="relative w-full h-auto cursor-pointer group"
-              onClick={() => openModal(index)}
-            >
-              <Photo
-                imageName={imageName}
-                descricao={images[index].descricao}
-                hash={images[index].hash}
-                album_id={Number(album_id)}
-                width={images[index].width}
-                height={images[index].height}
-                className="object-cover w-full h-auto transition-transform duration-500 group-hover:scale-105"
-              />
+        {images?.map((image, index) => {
+          const { nome: imageName, descricao, hash, width, height } = image;
+
+          return (
+            <div key={imageName} className="mb-6 break-inside-avoid">
+              <div
+                className="relative w-full h-auto cursor-pointer group"
+                onClick={() => openModal(index)}
+              >
+                <Photo
+                  imageName={imageName}
+                  descricao={descricao || ""}
+                  hash={hash}
+                  album_id={Number(album_id)}
+                  width={width || 0}
+                  height={height || 0}
+                  className="object-cover w-full h-auto transition-transform duration-500 group-hover:scale-105"
+                />
+              </div>
             </div>
-            <PhotoModal
-              isOpen={isModalOpen && currentImageIndex === index}
-              onClose={closeModal}
-              images={images}
-              index={index}
-              album_id={album_id}
-            />
-          </div>
-        ))}
+          );
+        })}
       </div>
+      
+      {isModalOpen && currentImageIndex !== null && (
+        <PhotoModal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          images={images}
+          index={currentImageIndex}
+          album_id={album_id}
+        />
+      )}
+      
       {!isModalOpen && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
