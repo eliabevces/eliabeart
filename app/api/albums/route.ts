@@ -4,19 +4,9 @@ import { requireAuth } from "@/app/lib/auth";
 import { processAlbumImages } from "@/app/lib/image-processing";
 import { cache } from "@/app/lib/cache";
 
-// GET /api/albums — list all public albums (auto-discovers from S3)
+// GET /api/albums — list all public albums (auto-discovers from S3, cached)
 export async function GET() {
   try {
-    // Process any new albums that need image processing
-    const needsProcessing = await getAlbumsNeedingProcessing();
-    for (const album of needsProcessing) {
-      try {
-        await processAlbumImages(album.id, album.nome);
-      } catch (error) {
-        console.error(`Error processing album ${album.nome}:`, error);
-      }
-    }
-
     const albums = await getAlbums();
     // Strip the codigo field before returning (never expose to public listing)
     const safeAlbums = albums.map(({ codigo, ...rest }) => rest);
@@ -30,7 +20,7 @@ export async function GET() {
   }
 }
 
-// POST /api/albums — force re-sync albums from S3 (protected)
+// POST /api/albums — force re-sync albums from S3 and process new images (protected)
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
   if (authResult instanceof NextResponse) return authResult;
@@ -38,6 +28,16 @@ export async function POST(request: NextRequest) {
   try {
     // Clear cache to force a fresh sync with S3
     cache.delete("albuns");
+
+    // Process any new albums that need image processing
+    const needsProcessing = await getAlbumsNeedingProcessing();
+    for (const album of needsProcessing) {
+      try {
+        await processAlbumImages(album.id, album.nome);
+      } catch (error) {
+        console.error(`Error processing album ${album.nome}:`, error);
+      }
+    }
 
     const albums = await getAlbums();
     return NextResponse.json(

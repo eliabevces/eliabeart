@@ -2,7 +2,8 @@ import sharp from "sharp";
 import { encode } from "blurhash";
 import { cache } from "./cache";
 import { getObject, imageKey, listAlbumImages } from "./s3";
-import { readImagesJson, writeImagesJson, ImageData } from "./images";
+import { readImagesJson, writeImagesJson, imagesLockKey, ImageData } from "./images";
+import { jsonMutex, processingSemaphore } from "./concurrency";
 
 /**
  * Process a single image from S3: read dimensions, generate blurhash,
@@ -59,32 +60,39 @@ export async function processAlbumImages(
   albumId: number,
   albumName: string
 ): Promise<{ processed: string[]; skipped: string[] }> {
-  const jpgImages = await listAlbumImages(albumName);
+  return jsonMutex.runExclusive(imagesLockKey(albumName), async () => {
+    const jpgImages = await listAlbumImages(albumName);
 
-  // Get existing image metadata from S3
-  const existingImages = await readImagesJson(albumName);
-  const existingNames = new Set(existingImages.map((img) => img.nome));
+    // Get existing image metadata from S3
+    const existingImages = await readImagesJson(albumName);
+    const existingNames = new Set(existingImages.map((img) => img.nome));
 
-  const newImageNames = jpgImages.filter((name) => !existingNames.has(name));
-  const processed: string[] = [];
-  const newEntries: ImageData[] = [];
+    const newImageNames = jpgImages.filter((name) => !existingNames.has(name));
 
-  for (const imageName of newImageNames) {
-    try {
-      const entry = await processImage(albumId, imageName, albumName);
-      newEntries.push(entry);
-      processed.push(imageName);
-    } catch (error) {
-      console.error(`Failed to process image ${imageName}:`, error);
+    // Process new images with limited concurrency (Sharp/BlurHash is CPU-bound)
+    const results = await Promise.all(
+      newImageNames.map((imageName) =>
+        processingSemaphore.run(async () => {
+          try {
+            return await processImage(albumId, imageName, albumName);
+          } catch (error) {
+            console.error(`Failed to process image ${imageName}:`, error);
+            return null;
+          }
+        })
+      )
+    );
+
+    const newEntries = results.filter((entry): entry is ImageData => entry !== null);
+    const processed = newEntries.map((entry) => entry.nome);
+
+    // Write updated images.json in a single put
+    if (newEntries.length > 0) {
+      const allImages = [...existingImages, ...newEntries];
+      await writeImagesJson(albumName, allImages);
+      cache.delete(`album_${albumId}_images`);
     }
-  }
 
-  // Write updated images.json in a single put
-  if (newEntries.length > 0) {
-    const allImages = [...existingImages, ...newEntries];
-    await writeImagesJson(albumName, allImages);
-    cache.delete(`album_${albumId}_images`);
-  }
-
-  return { processed, skipped: jpgImages.filter((n) => existingNames.has(n)) };
+    return { processed, skipped: jpgImages.filter((n) => existingNames.has(n)) };
+  });
 }

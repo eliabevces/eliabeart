@@ -3,8 +3,8 @@ import AlbumList from "./components/AlbumList";
 import { get_albuns } from "@lib/api";
 import ScrollableContainer from "./components/ScrollableContainer";
 
-// Force dynamic rendering — albums are fetched from S3 at runtime
-export const dynamic = "force-dynamic";
+// ISR: regenerate at most once every 60s, matching config.CACHE_TTL
+export const revalidate = 60;
 
 export default async function Home() {
   const albuns = await get_albuns();

@@ -5,7 +5,7 @@ import { Foto } from "@/app/types/Foto";
  */
 export const random_photo = async (): Promise<Foto | null> => {
   try {
-    const response = await fetch("/api/random-photo", {
+    const response = await fetch("/api/images/random", {
       cache: "no-store",
     });
 

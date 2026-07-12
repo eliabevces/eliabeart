@@ -19,7 +19,6 @@ const Random: React.FC = () => {
 
     const fetchRandomPhoto = async () => {
       const randomPhoto = await random_photo();
-      console.log("Random photo fetched:", randomPhoto);
       if (randomPhoto) {
         setFoto(randomPhoto);
       }

@@ -179,8 +179,6 @@ export async function listBucketPrefixes(): Promise<string[]> {
   const prefixes: string[] = [];
   let continuationToken: string | undefined;
 
-  console.log("[s3] listBucketPrefixes: endpoint =", config.S3_ENDPOINT, "bucket =", BUCKET);
-
   try {
     do {
       const command = new ListObjectsV2Command({
@@ -208,7 +206,6 @@ export async function listBucketPrefixes(): Promise<string[]> {
     throw error;
   }
 
-  console.log("[s3] listBucketPrefixes result:", prefixes);
   return prefixes;
 }
 

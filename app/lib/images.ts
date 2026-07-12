@@ -2,6 +2,11 @@ import { cache } from "./cache";
 import { config } from "./config";
 import { getJSON, putJSON, deleteObject } from "./s3";
 import { getAlbum, getAlbums, getPublicAlbums } from "./albums";
+import { jsonMutex } from "./concurrency";
+
+export function imagesLockKey(albumName: string): string {
+  return `images:${albumName}`;
+}
 
 export interface ImageData {
   nome: string;
@@ -54,10 +59,10 @@ export async function getRandomImage(): Promise<ImageData | null> {
   const albums = await getPublicAlbums();
   if (albums.length === 0) return null;
 
-  // Collect all images across all albums
+  // Collect all images across all albums, reusing the per-album cache
   const allImages: ImageData[] = [];
   for (const album of albums) {
-    const images = await readImagesJson(album.nome);
+    const images = await getImagesByAlbum(album.id);
     allImages.push(...images);
   }
 
@@ -91,9 +96,11 @@ export async function deleteImagesByNames(
   const album = albums.find((a) => a.id === albumId);
   if (!album) return;
 
-  const nameSet = new Set(names);
-  const images = await readImagesJson(album.nome);
-  const remaining = images.filter((img) => !nameSet.has(img.nome));
-  await writeImagesJson(album.nome, remaining);
+  await jsonMutex.runExclusive(imagesLockKey(album.nome), async () => {
+    const nameSet = new Set(names);
+    const images = await readImagesJson(album.nome);
+    const remaining = images.filter((img) => !nameSet.has(img.nome));
+    await writeImagesJson(album.nome, remaining);
+  });
   cache.delete(`album_${albumId}_images`);
 }
