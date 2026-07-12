@@ -14,6 +14,7 @@ const Photo = ({
   width,
   height,
   className,
+  code,
 }: {
   imageName: string;
   descricao: string;
@@ -22,11 +23,12 @@ const Photo = ({
   width: number;
   height: number;
   className: string;
+  code?: string | null;
 }) => {
   const [retryCount, setRetryCount] = useState(0);
   const [failed, setFailed] = useState(false);
 
-  const src = `/api/images/${album_id}/${imageName}`;
+  const src = `/api/images/${album_id}/${imageName}${code ? `?code=${encodeURIComponent(code)}` : ""}`;
 
   const handleError = useCallback(() => {
     if (retryCount < MAX_RETRIES) {

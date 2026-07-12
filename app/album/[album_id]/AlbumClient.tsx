@@ -7,9 +7,10 @@ import { Foto } from "@/app/types/Foto";
 interface AlbumClientProps {
   images: Foto[];
   album_id: string;
+  code?: string | null;
 }
 
-const AlbumClient: React.FC<AlbumClientProps> = ({ images, album_id }) => {
+const AlbumClient: React.FC<AlbumClientProps> = ({ images, album_id, code }) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [currentImageIndex, setCurrentImageIndex] = React.useState<
     number | null
@@ -55,6 +56,7 @@ const AlbumClient: React.FC<AlbumClientProps> = ({ images, album_id }) => {
                   width={width || 0}
                   height={height || 0}
                   className="object-cover w-full h-auto transition-transform duration-500 group-hover:scale-105"
+                  code={code}
                 />
               </div>
             </div>
@@ -69,6 +71,7 @@ const AlbumClient: React.FC<AlbumClientProps> = ({ images, album_id }) => {
           images={images}
           index={currentImageIndex}
           album_id={album_id}
+          code={code}
         />
       )}
       

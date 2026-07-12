@@ -65,7 +65,7 @@ const PrivateAlbumWrapper: React.FC<PrivateAlbumWrapperProps> = ({
     return <PrivateAlbumGate albumId={albumId} onAccessGranted={handleAccessGranted} />;
   }
 
-  return <AlbumClient images={images} album_id={albumId} />;
+  return <AlbumClient images={images} album_id={albumId} code={code} />;
 };
 
 export default PrivateAlbumWrapper;

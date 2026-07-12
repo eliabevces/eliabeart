@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAlbum } from "@/app/lib/albums";
+import { getAlbum, validateAlbumCode } from "@/app/lib/albums";
 import { getImagesByAlbum } from "@/app/lib/images";
 import { getObject, imageKey } from "@/app/lib/s3";
 import { processAlbumImages } from "@/app/lib/image-processing";
@@ -8,7 +8,7 @@ import { s3Semaphore } from "@/app/lib/concurrency";
 
 // GET /api/images/[album_id]/[image] — serve image file from S3
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ album_id: string; image: string }> }
 ) {
   try {
@@ -24,6 +24,19 @@ export async function GET(
         { error: "Album não encontrado" },
         { status: 404 }
       );
+    }
+
+    // Private albums only expose the cover (used as a public teaser on the
+    // home listing); every other image requires a valid access code.
+    if (album.privado && image !== album.cover) {
+      const code = request.nextUrl.searchParams.get("code");
+      const isValid = await validateAlbumCode(albumId, code);
+      if (!isValid) {
+        return NextResponse.json(
+          { error: "Código de acesso inválido", privado: true },
+          { status: 403 }
+        );
+      }
     }
 
     let images = await getImagesByAlbum(albumId);

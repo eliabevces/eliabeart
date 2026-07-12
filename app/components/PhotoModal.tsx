@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect } from "react";
 import Photo from "./Photo";
 
@@ -7,6 +8,7 @@ interface PhotoModalProps {
   index: number;
   images: { nome: string; hash: string | null; width: number | null; height: number | null }[];
   album_id: string;
+  code?: string | null;
 }
 
 const PhotoModal: React.FC<PhotoModalProps> = ({
@@ -15,6 +17,7 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
   index: initialIndex,
   images,
   album_id,
+  code,
 }) => {
   const [index, setIndex] = useState(initialIndex);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -116,7 +119,7 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
                     e.stopPropagation();
                     setDropdownOpen(false);
                     
-                    const downloadUrl = `/api/download?album_id=${album_id}&image_name=${encodeURIComponent(images[index].nome)}`;
+                    const downloadUrl = `/api/download?album_id=${album_id}&image_name=${encodeURIComponent(images[index].nome)}${code ? `&code=${encodeURIComponent(code)}` : ""}`;
                     const link = document.createElement("a");
                     link.href = downloadUrl;
                     link.download = ""; // Let the server set the filename
@@ -137,7 +140,7 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
             e.stopPropagation();
             setDropdownOpen(false);
             const newTab = window.open(
-              `/api/images/${album_id}/${images[index].nome}`,
+              `/api/images/${album_id}/${images[index].nome}${code ? `?code=${encodeURIComponent(code)}` : ""}`,
               "_blank"
             );
             if (newTab) {
@@ -157,6 +160,7 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
           width={images[index].width || 0}
           height={images[index].height || 0}
           className="object-contain w-full h-full max-w-[90vw] max-h-[90vh] md:max-w-2xl md:max-h-2xl"
+          code={code}
         />
       </div>
       {index < images.length - 1 && (
