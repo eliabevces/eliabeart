@@ -177,8 +177,8 @@ export async function DELETE(
         if (!exists) return false;
 
         const remaining = images.filter((img) => img.nome !== imageName);
-        await writeImagesJson(album.nome, remaining);
         await deleteObject(imageKey(album.nome, imageName));
+        await writeImagesJson(album.nome, remaining);
         return true;
       }
     );
