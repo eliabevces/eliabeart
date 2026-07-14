@@ -6,9 +6,8 @@ export const config = {
   S3_SECRET_KEY: process.env.S3_SECRET_KEY || "minioadmin",
   S3_BUCKET: process.env.S3_BUCKET || "imagens",
 
-  KEYCLOAK_SERVER_URL: process.env.KEYCLOAK_SERVER_URL || "",
-  KEYCLOAK_REALM_NAME: process.env.KEYCLOAK_REALM_NAME || "",
-  KEYCLOAK_CLIENT_ID: process.env.KEYCLOAK_CLIENT_ID || "",
+  ADMIN_USERNAME: process.env.ADMIN_USERNAME || "",
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "",
 
   CACHE_TTL: 60, // seconds
 };

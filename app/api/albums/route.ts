@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getAlbums, getAlbumsNeedingProcessing } from "@/app/lib/albums";
 import { requireAuth } from "@/app/lib/auth";
 import { processAlbumImages } from "@/app/lib/image-processing";
@@ -21,8 +21,8 @@ export async function GET() {
 }
 
 // POST /api/albums — force re-sync albums from S3 and process new images (protected)
-export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request);
+export async function POST() {
+  const authResult = await requireAuth();
   if (authResult instanceof NextResponse) return authResult;
 
   try {

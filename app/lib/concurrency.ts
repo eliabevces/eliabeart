@@ -51,13 +51,19 @@ export class KeyedMutex {
     const next = new Promise<void>((resolve) => {
       releaseNext = resolve;
     });
-    this.tails.set(key, tail.then(() => next));
+
+    const current = tail.then(() => next);
+    this.tails.set(key, current);
 
     await tail;
     try {
       return await fn();
     } finally {
       releaseNext();
+      // If nobody queued after us, drop the key to avoid unbounded growth.
+      if (this.tails.get(key) === current) {
+        this.tails.delete(key);
+      }
     }
   }
 }

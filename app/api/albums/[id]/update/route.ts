@@ -8,10 +8,10 @@ import { cache } from "@/app/lib/cache";
 
 // POST /api/albums/[id]/update — sync album with S3 bucket (protected)
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireAuth();
   if (authResult instanceof NextResponse) return authResult;
 
   try {
