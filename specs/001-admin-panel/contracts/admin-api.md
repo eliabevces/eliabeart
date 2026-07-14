@@ -1,6 +1,6 @@
 # API Contract: Painel de Administração
 
-Todas as rotas abaixo exigem `Authorization: Bearer <token>` válido (verificado por `requireAuth`); sem token válido, `401 { "error": "Unauthorized" }`.
+Todas as rotas abaixo exigem uma sessão administrativa válida (cookie de sessão Auth.js/next-auth, verificado por `requireAuth()`); sem sessão válida, `401 { "error": "Unauthorized" }`.
 
 ## Rotas novas
 
