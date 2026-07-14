@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAlbums, getAlbumsNeedingProcessing } from "@/app/lib/albums";
 import { requireAuth } from "@/app/lib/auth";
-import { processAlbumImages } from "@/app/lib/image-processing";
+import {
+  processAlbumImages,
+  ensureAlbumThumbnails,
+} from "@/app/lib/image-processing";
 import { cache } from "@/app/lib/cache";
 
 // GET /api/albums — list all public albums (auto-discovers from S3, cached)
@@ -40,8 +43,25 @@ export async function POST() {
     }
 
     const albums = await getAlbums();
+
+    // Backfill WebP renditions for albums processed before thumbnails
+    // existed. Cheap when nothing is missing (one S3 listing per album).
+    const thumbsBackfilled: string[] = [];
+    for (const album of albums) {
+      try {
+        const generated = await ensureAlbumThumbnails(album.nome);
+        thumbsBackfilled.push(...generated.map((n) => `${album.nome}/${n}`));
+      } catch (error) {
+        console.error(`Error backfilling thumbnails for ${album.nome}:`, error);
+      }
+    }
+
     return NextResponse.json(
-      { message: "Albums sincronizados com S3", albuns: albums },
+      {
+        message: "Albums sincronizados com S3",
+        albuns: albums,
+        thumbsBackfilled,
+      },
       { status: 200 }
     );
   } catch (error) {

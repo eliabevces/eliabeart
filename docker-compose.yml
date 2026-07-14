@@ -13,6 +13,9 @@ services:
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      # Persist the next/image optimizer cache across restarts/deploys
+      - next_cache:/app/.next/cache
 
   minio:
     image: minio/minio
@@ -38,3 +41,4 @@ services:
 
 volumes:
   minio_data:
+  next_cache:

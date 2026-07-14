@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAlbum, validateAlbumCode } from "@/app/lib/albums";
-import { getObject, imageKey } from "@/app/lib/s3";
+import { getObjectStream, imageKey } from "@/app/lib/s3";
 import { s3Semaphore } from "@/app/lib/concurrency";
 
 export async function GET(request: NextRequest) {
@@ -36,25 +36,31 @@ export async function GET(request: NextRequest) {
     }
 
     const key = imageKey(album.nome, imageName);
-    let imageBuffer: Buffer;
+    let result;
     try {
-      imageBuffer = await s3Semaphore.run(() => getObject(key));
+      result = await s3Semaphore.run(() => getObjectStream(key));
     } catch {
       return NextResponse.json(
         { error: "Image not found in S3" },
         { status: 404 }
       );
     }
+    if (result === "not-modified") {
+      return new NextResponse(null, { status: 304 });
+    }
 
     const fileName = `${imageName}.jpg`;
 
-    return new NextResponse(new Uint8Array(imageBuffer), {
-      headers: {
-        "Content-Type": "image/jpeg",
-        "Content-Disposition": `attachment; filename="${fileName}"`,
-        "Cache-Control": "no-cache",
-      },
+    const headers = new Headers({
+      "Content-Type": "image/jpeg",
+      "Content-Disposition": `attachment; filename="${fileName}"`,
+      "Cache-Control": "no-cache",
     });
+    if (result.contentLength !== undefined) {
+      headers.set("Content-Length", String(result.contentLength));
+    }
+
+    return new NextResponse(result.body, { headers });
   } catch (error) {
     console.error("Download error:", error);
     return NextResponse.json(

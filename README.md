@@ -147,6 +147,23 @@ This application can be deployed on various platforms:
 - **Netlify**: Static site deployment
 - **Custom Server**: Using `npm run build` and `npm run start`
 
+## 🖼 Image Delivery Pipeline
+
+- Originais JPEG ficam no MinIO em `{album}/{imagem}.jpg`; metadados em JSONs no bucket (`_albums.json`, `{album}/images.json`).
+- No ingest (upload pelo admin ou sync `POST /api/albums`), o servidor gera renditions WebP em **480/1080/2048px**, gravadas em `{album}/_thumbs/{imagem}.{w}.webp` (sem upscale — larguras maiores que o original são puladas).
+- A rota `GET /api/images/{album_id}/{imagem}?w=480|1080|2048` serve a rendition via streaming, com fallback para o JPEG original se a rendition ainda não existir. Sem `?w=`, serve o original.
+- O `POST /api/albums` (admin) também faz **backfill** das renditions faltantes em álbuns antigos — barato quando não há nada a gerar (uma listagem S3 por álbum).
+- O frontend usa um `loader` custom no `next/image` que mapeia a largura pedida para a rendition mais próxima, então o otimizador `/_next/image` fica fora do caminho crítico.
+
+### Cache na Cloudflare
+
+As respostas de imagem saem com `Cache-Control: public, max-age=31536000, immutable` e `ETag`. Para garantir cache de edge consistente, crie uma **Cache Rule** no dashboard da Cloudflare:
+
+- **When**: URI Path starts with `/api/images/`
+- **Then**: Eligible for cache, com *Origin Cache Control: on* (respeita os headers da origem)
+
+O parâmetro `?code=` dos álbuns privados faz parte da cache key, então imagens privadas continuam exigindo o código correto. A rota `/api/download` envia `Cache-Control: no-cache` e não deve ser cacheada.
+
 ## 📄 License
 
 This project is for personal use and educational purposes.

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAlbum } from "@/app/lib/albums";
 import { requireAuth } from "@/app/lib/auth";
-import { putObject, deleteObject, imageKey } from "@/app/lib/s3";
+import {
+  putObject,
+  deleteObject,
+  deleteImageThumbs,
+  imageKey,
+} from "@/app/lib/s3";
 import { processImage } from "@/app/lib/image-processing";
 import {
   readImagesJson,
@@ -103,6 +108,7 @@ export async function POST(
             console.error(`Failed to upload ${file.name}:`, error);
             try {
               await deleteObject(imageKey(album.nome, imageName));
+              await deleteImageThumbs(album.nome, imageName);
             } catch (cleanupError) {
               console.error(
                 `Failed to cleanup ${file.name} after error:`,
@@ -178,6 +184,7 @@ export async function DELETE(
 
         const remaining = images.filter((img) => img.nome !== imageName);
         await deleteObject(imageKey(album.nome, imageName));
+        await deleteImageThumbs(album.nome, imageName);
         await writeImagesJson(album.nome, remaining);
         return true;
       }

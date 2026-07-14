@@ -72,6 +72,8 @@ const Random: React.FC = () => {
           width={constrainedDimensions.width}
           height={constrainedDimensions.height}
           className="max-w-[80vw] max-h-full object-contain max-h-[100vh]"
+          sizes="80vw"
+          priority
         />
       ) : (
         <span>Loading...</span>

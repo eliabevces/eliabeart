@@ -1,7 +1,8 @@
 "use client";
-import Image from "next/image";
+import Image, { ImageLoaderProps } from "next/image";
 import { blurhashToBase64 } from "blurhash-base64";
 import { useState, useCallback } from "react";
+import { nearestThumbWidth } from "@/app/lib/thumbs";
 
 const MAX_RETRIES = 4;
 const RETRY_DELAY_MS = 1500;
@@ -15,6 +16,8 @@ const Photo = ({
   height,
   className,
   code,
+  sizes,
+  priority,
 }: {
   imageName: string;
   descricao: string;
@@ -24,11 +27,22 @@ const Photo = ({
   height: number;
   className: string;
   code?: string | null;
+  sizes?: string;
+  priority?: boolean;
 }) => {
   const [retryCount, setRetryCount] = useState(0);
   const [failed, setFailed] = useState(false);
 
-  const src = `/api/images/${album_id}/${imageName}${code ? `?code=${encodeURIComponent(code)}` : ""}`;
+  // Maps each requested width to the nearest pre-generated WebP rendition,
+  // bypassing /_next/image entirely (no on-server re-encoding).
+  const loader = useCallback(
+    ({ width: w }: ImageLoaderProps) => {
+      const params = new URLSearchParams({ w: String(nearestThumbWidth(w)) });
+      if (code) params.set("code", code);
+      return `/api/images/${album_id}/${imageName}?${params.toString()}`;
+    },
+    [album_id, imageName, code]
+  );
 
   const handleError = useCallback(() => {
     if (retryCount < MAX_RETRIES) {
@@ -56,11 +70,14 @@ const Photo = ({
       key={retryCount}
       width={width}
       height={height}
-      src={src}
+      src={`/api/images/${album_id}/${imageName}`}
+      loader={loader}
+      sizes={sizes}
       alt={descricao || "Image description"}
       blurDataURL={blurhashToBase64(hash || "")}
       placeholder={hash ? "blur" : undefined}
-      loading="lazy"
+      loading={priority ? undefined : "lazy"}
+      priority={priority}
       className={className}
       onError={handleError}
     />

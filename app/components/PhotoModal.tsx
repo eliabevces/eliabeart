@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from "react";
 import Photo from "./Photo";
 
+// Enlarged photo is capped at max-w-[90vw], md:max-w-2xl (672px).
+const MODAL_SIZES = "(max-width: 768px) 90vw, 672px";
+
 interface PhotoModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -161,7 +164,30 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
           height={images[index].height || 0}
           className="object-contain w-full h-full max-w-[90vw] max-h-[90vh] md:max-w-2xl md:max-h-2xl"
           code={code}
+          sizes={MODAL_SIZES}
+          priority
         />
+      </div>
+      {/* Preload the neighboring photos so arrow/swipe navigation is instant.
+          Same sizes as the visible photo, so the browser reuses the fetch. */}
+      <div className="hidden" aria-hidden="true">
+        {[index - 1, index + 1]
+          .filter((i) => i >= 0 && i < images.length)
+          .map((i) => (
+            <Photo
+              key={images[i].nome}
+              imageName={images[i].nome}
+              descricao={""}
+              hash={images[i].hash}
+              album_id={Number(album_id)}
+              width={images[i].width || 0}
+              height={images[i].height || 0}
+              className=""
+              code={code}
+              sizes={MODAL_SIZES}
+              priority
+            />
+          ))}
       </div>
       {index < images.length - 1 && (
         <button

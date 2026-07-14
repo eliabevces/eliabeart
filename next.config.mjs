@@ -4,7 +4,9 @@ const nextConfig = {
   // Images are now served via internal API routes — no remote patterns needed.
   images: {
     remotePatterns: [],
-    formats: ["image/avif"],
+    // WebP encodes ~5-10x faster than AVIF; only images that still go
+    // through /_next/image use this (the gallery uses a custom loader).
+    formats: ["image/webp"],
     localPatterns: [
       {
         pathname: "/api/images/**",

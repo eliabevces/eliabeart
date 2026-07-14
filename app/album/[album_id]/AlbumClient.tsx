@@ -4,6 +4,17 @@ import PhotoModal from "@components/PhotoModal";
 import Photo from "@components/Photo";
 import { Foto } from "@/app/types/Foto";
 
+// Masonry container is w-[80vw] split into 1/2/3/4 columns per breakpoint.
+const GRID_SIZES =
+  "(max-width: 640px) 80vw, (max-width: 768px) 40vw, (max-width: 1024px) 27vw, 20vw";
+
+// Images rendered eagerly at the top of the album (LCP candidates).
+const PRIORITY_COUNT = 8;
+
+// Progressive rendering: keeps the DOM small on large albums; the sentinel
+// appends the next batch as it approaches the viewport.
+const BATCH_SIZE = 30;
+
 interface AlbumClientProps {
   images: Foto[];
   album_id: string;
@@ -15,6 +26,29 @@ const AlbumClient: React.FC<AlbumClientProps> = ({ images, album_id, code }) => 
   const [currentImageIndex, setCurrentImageIndex] = React.useState<
     number | null
   >(null);
+  const [visibleCount, setVisibleCount] = React.useState(BATCH_SIZE);
+  const sentinelRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisibleCount((count) =>
+            Math.min(count + BATCH_SIZE, images.length)
+          );
+        }
+      },
+      { rootMargin: "1000px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+    // Re-observe after each batch: observe() re-fires the callback with the
+    // current intersection state, so a sentinel still in view (short batches,
+    // fast scroll) keeps loading instead of stalling.
+  }, [images.length, visibleCount]);
 
   const openModal = (index: number) => {
     setCurrentImageIndex(index);
@@ -25,6 +59,8 @@ const AlbumClient: React.FC<AlbumClientProps> = ({ images, album_id, code }) => 
     setIsModalOpen(false);
     setCurrentImageIndex(null);
   };
+
+  const visibleImages = images?.slice(0, visibleCount);
 
   return (
     <div className="relative min-h-[80vh] w-[80vw] mx-auto">
@@ -39,7 +75,7 @@ const AlbumClient: React.FC<AlbumClientProps> = ({ images, album_id, code }) => 
         pb-20
         font-[family-name:var(--font-geist-sans)]"
       >
-        {images?.map((image, index) => {
+        {visibleImages?.map((image, index) => {
           const { nome: imageName, descricao, hash, width, height } = image;
 
           return (
@@ -57,13 +93,19 @@ const AlbumClient: React.FC<AlbumClientProps> = ({ images, album_id, code }) => 
                   height={height || 0}
                   className="object-cover w-full h-auto transition-transform duration-500 group-hover:scale-105"
                   code={code}
+                  sizes={GRID_SIZES}
+                  priority={index < PRIORITY_COUNT}
                 />
               </div>
             </div>
           );
         })}
       </div>
-      
+
+      {visibleCount < (images?.length ?? 0) && (
+        <div ref={sentinelRef} className="h-px" aria-hidden="true" />
+      )}
+
       {isModalOpen && currentImageIndex !== null && (
         <PhotoModal
           isOpen={isModalOpen}
@@ -74,7 +116,7 @@ const AlbumClient: React.FC<AlbumClientProps> = ({ images, album_id, code }) => 
           code={code}
         />
       )}
-      
+
       {!isModalOpen && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}

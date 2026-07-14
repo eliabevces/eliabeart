@@ -32,6 +32,47 @@ if (process.env.NODE_ENV !== "production") {
 
 const BUCKET = config.S3_BUCKET;
 
+export interface S3ObjectStream {
+  body: ReadableStream<Uint8Array>;
+  contentLength?: number;
+  etag?: string;
+}
+
+/**
+ * Get an object from S3/MinIO as a web ReadableStream, so large images can be
+ * piped to the client without buffering them fully in memory.
+ * When `ifNoneMatch` matches the object's ETag, returns "not-modified".
+ */
+export async function getObjectStream(
+  key: string,
+  ifNoneMatch?: string | null
+): Promise<S3ObjectStream | "not-modified"> {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    IfNoneMatch: ifNoneMatch ?? undefined,
+  });
+
+  try {
+    const response = await s3.send(command);
+    if (!response.Body) {
+      throw new Error(`Empty body for key: ${key}`);
+    }
+    return {
+      body: response.Body.transformToWebStream() as ReadableStream<Uint8Array>,
+      contentLength: response.ContentLength,
+      etag: response.ETag,
+    };
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } })
+      ?.$metadata?.httpStatusCode;
+    if (status === 304) {
+      return "not-modified";
+    }
+    throw error;
+  }
+}
+
 /**
  * Get an object (image) from S3/MinIO as a Buffer.
  */
@@ -214,4 +255,60 @@ export async function listBucketPrefixes(): Promise<string[]> {
  */
 export function imageKey(albumName: string, imageName: string): string {
   return `${albumName}/${imageName}.jpg`;
+}
+
+/**
+ * Build the S3 key for a pre-generated WebP rendition of an image.
+ */
+export function thumbKey(
+  albumName: string,
+  imageName: string,
+  width: number
+): string {
+  return `${albumName}/_thumbs/${imageName}.${width}.webp`;
+}
+
+/**
+ * List all pre-generated rendition file names (e.g. "foto.480.webp")
+ * under an album's _thumbs/ prefix.
+ */
+export async function listAlbumThumbs(albumName: string): Promise<Set<string>> {
+  const prefix = `${albumName}/_thumbs/`;
+  const thumbs = new Set<string>();
+  let continuationToken: string | undefined;
+
+  do {
+    const command = new ListObjectsV2Command({
+      Bucket: BUCKET,
+      Prefix: prefix,
+      ContinuationToken: continuationToken,
+    });
+    const response = await s3.send(command);
+
+    if (response.Contents) {
+      for (const obj of response.Contents) {
+        if (obj.Key) {
+          const fileName = obj.Key.slice(prefix.length);
+          if (fileName.length > 0 && !fileName.includes("/")) {
+            thumbs.add(fileName);
+          }
+        }
+      }
+    }
+
+    continuationToken = response.NextContinuationToken;
+  } while (continuationToken);
+
+  return thumbs;
+}
+
+/**
+ * Delete every pre-generated rendition of a single image.
+ * The trailing "." keeps "foto" from also matching "foto2".
+ */
+export async function deleteImageThumbs(
+  albumName: string,
+  imageName: string
+): Promise<void> {
+  await deletePrefix(`${albumName}/_thumbs/${imageName}.`);
 }

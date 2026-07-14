@@ -9,5 +9,7 @@ export const config = {
   ADMIN_USERNAME: process.env.ADMIN_USERNAME || "",
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "",
 
-  CACHE_TTL: 60, // seconds
+  // Metadata cache TTL. Writes already invalidate explicitly via
+  // cache.delete(), so a long TTL only avoids needless S3 re-syncs.
+  CACHE_TTL: 3600, // seconds
 };

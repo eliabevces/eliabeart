@@ -11,7 +11,7 @@ const AlbumList: React.FC<AlbumListProps> = ({ albuns }) => {
 
   return (
     <div className="flex items-center justify-center">
-      {albuns.map((album) => {
+      {albuns.map((album, index) => {
         // Strip leading "_" from display name for private albums
         const displayName = album.nome.startsWith("_") ? album.nome.slice(1) : album.nome;
         return (
@@ -28,6 +28,8 @@ const AlbumList: React.FC<AlbumListProps> = ({ albuns }) => {
                 width={700}
                 height={700}
                 className="w-50 h-80 object-cover rounded-t-lg"
+                sizes="320px"
+                priority={index < 2}
               />
               <h2 className="mt-4 mb-2 text-lg font-semibold">{displayName}</h2>
             </Link>

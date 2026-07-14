@@ -288,6 +288,7 @@ const AdminAlbumClient: React.FC<AdminAlbumClientProps> = ({ albumId: album_id }
               height={image.height || 0}
               className="w-full h-32 object-cover rounded"
               code={album.codigo}
+              sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
             />
             <div className="absolute inset-0 flex flex-col items-center justify-end gap-1 pb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded">
               <button
