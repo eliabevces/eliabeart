@@ -9,7 +9,7 @@ import { jsonMutex, processingSemaphore } from "./concurrency";
  * Process a single image from S3: read dimensions, generate blurhash,
  * and return the metadata (does NOT write to S3 — caller batches writes).
  */
-async function processImage(
+export async function processImage(
   albumId: number,
   imageName: string,
   albumName: string

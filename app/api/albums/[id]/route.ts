@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteAlbum, getAlbum } from "@/app/lib/albums";
-import { requireAuth, validateToken } from "@/app/lib/auth";
+import { requireAuth, isAuthenticated } from "@/app/lib/auth";
 
 // DELETE /api/albums/[id] — delete album (protected)
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireAuth();
   if (authResult instanceof NextResponse) return authResult;
 
   try {
@@ -37,7 +37,7 @@ export async function DELETE(
 
 // GET /api/albums/[id] — get album info (codigo hidden from unauthenticated users)
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -56,9 +56,9 @@ export async function GET(
     }
 
     // Only expose the access code to authenticated users
-    const isAuthenticated = !!(await validateToken(request));
+    const authenticated = await isAuthenticated();
     const { codigo, ...publicAlbum } = album;
-    const response = isAuthenticated ? album : publicAlbum;
+    const response = authenticated ? album : publicAlbum;
 
     return NextResponse.json(response);
   } catch (error) {
