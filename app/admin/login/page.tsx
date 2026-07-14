@@ -27,10 +27,10 @@ const AdminLoginPage: React.FC = () => {
       setError("Usuário ou senha inválidos.");
       return;
     }
-
-    router.push("/admin");
+    const callbackUrl =
+      new URLSearchParams(window.location.search).get("callbackUrl") ?? "/admin";
+    router.push(callbackUrl);
     router.refresh();
-  };
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
