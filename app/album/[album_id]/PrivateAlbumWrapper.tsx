@@ -16,17 +16,20 @@ const PrivateAlbumWrapper: React.FC<PrivateAlbumWrapperProps> = ({
   const [loading, setLoading] = useState(true);
   const [code, setCode] = useState<string | null>(null);
 
-  // Check if we already have a code in sessionStorage
+  // Try, in order: a shared ?key=TOKEN in the URL, then a code saved in sessionStorage
   useEffect(() => {
+    const urlKey = new URLSearchParams(window.location.search).get("key");
     const storedCode = sessionStorage.getItem(`album_code_${albumId}`);
-    if (storedCode) {
-      verifyAndLoadImages(storedCode);
+    const codeToTry = urlKey?.trim() || storedCode;
+
+    if (codeToTry) {
+      verifyAndLoadImages(codeToTry, Boolean(urlKey));
     } else {
       setLoading(false);
     }
   }, [albumId]);
 
-  const verifyAndLoadImages = async (accessCode: string) => {
+  const verifyAndLoadImages = async (accessCode: string, fromUrl = false) => {
     setLoading(true);
     try {
       const response = await fetch(`/api/images/${albumId}?code=${encodeURIComponent(accessCode)}`);
@@ -35,6 +38,12 @@ const PrivateAlbumWrapper: React.FC<PrivateAlbumWrapperProps> = ({
         setImages(data.images || []);
         setAccessGranted(true);
         setCode(accessCode);
+        // Persist so navigation within the session keeps access without the key
+        sessionStorage.setItem(`album_code_${albumId}`, accessCode);
+        // Remove the token from the URL bar so it isn't accidentally re-shared
+        if (fromUrl) {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
       } else {
         // Invalid stored code, remove it
         sessionStorage.removeItem(`album_code_${albumId}`);
