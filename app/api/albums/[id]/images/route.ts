@@ -101,6 +101,14 @@ export async function POST(
             });
           } catch (error) {
             console.error(`Failed to upload ${file.name}:`, error);
+            try {
+              await deleteObject(imageKey(album.nome, imageName));
+            } catch (cleanupError) {
+              console.error(
+                `Failed to cleanup ${file.name} after error:`,
+                cleanupError
+              );
+            }
             perFileResults.push({
               fileName: file.name,
               status: "error",
