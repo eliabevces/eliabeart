@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAlbum, validateAlbumCode } from "@/app/lib/albums";
-import { getImagesByAlbum } from "@/app/lib/images";
+import { getImagesByAlbum, setImageMarked } from "@/app/lib/images";
 import { getObjectStream, imageKey, thumbKey, S3ObjectStream } from "@/app/lib/s3";
 import { isThumbWidth } from "@/app/lib/thumbs";
 import { processAlbumImages } from "@/app/lib/image-processing";
@@ -130,6 +130,65 @@ export async function GET(
     );
     return NextResponse.json(
       { error: "Erro ao obter imagem" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/images/[album_id]/[image] — toggle the "marcado" (favorite) flag.
+// Visitor-facing action (used by clients picking favorites from a shoot), so
+// it only requires the same private-album code as viewing the image, not admin auth.
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ album_id: string; image: string }> }
+) {
+  try {
+    const { album_id, image } = await params;
+    const albumId = parseInt(album_id, 10);
+    if (isNaN(albumId)) {
+      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+    }
+
+    const album = await getAlbum(albumId);
+    if (!album) {
+      return NextResponse.json(
+        { error: "Album não encontrado" },
+        { status: 404 }
+      );
+    }
+
+    if (album.privado) {
+      const code = request.nextUrl.searchParams.get("code");
+      const isValid = await validateAlbumCode(albumId, code);
+      if (!isValid) {
+        return NextResponse.json(
+          { error: "Código de acesso inválido", privado: true },
+          { status: 403 }
+        );
+      }
+    }
+
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body.marcado !== "boolean") {
+      return NextResponse.json(
+        { error: "Campo 'marcado' (boolean) é obrigatório" },
+        { status: 400 }
+      );
+    }
+
+    const updated = await setImageMarked(albumId, album.nome, image, body.marcado);
+    if (!updated) {
+      return NextResponse.json(
+        { error: "Imagem não encontrada" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ nome: image, marcado: body.marcado });
+  } catch (error) {
+    console.error("PATCH /api/images/[album_id]/[image] error:", error);
+    return NextResponse.json(
+      { error: "Erro ao marcar imagem" },
       { status: 500 }
     );
   }

@@ -5,4 +5,5 @@ export interface Foto {
   hash: string | null;
   width: number | null;
   height: number | null;
+  marcado?: boolean;
 }

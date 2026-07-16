@@ -49,13 +49,19 @@ const PrivateAlbumGate: React.FC<PrivateAlbumGateProps> = ({
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4">
+      <div
+        className="p-8 max-w-md w-full mx-4 border"
+        style={{ background: "var(--surface-raised)", borderColor: "var(--border)" }}
+      >
         <div className="text-center mb-6">
           <div className="text-5xl mb-4">🔒</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          <h2
+            className="text-2xl font-serif-italic mb-2"
+            style={{ color: "var(--foreground)" }}
+          >
             Álbum Privado
           </h2>
-          <p className="text-gray-500">
+          <p style={{ color: "var(--muted-strong)" }}>
             Este álbum é privado. Digite o código de acesso para visualizar as
             fotos.
           </p>
@@ -71,20 +77,32 @@ const PrivateAlbumGate: React.FC<PrivateAlbumGateProps> = ({
                 setError("");
               }}
               placeholder="Digite o código de acesso"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 border text-center text-lg tracking-widest focus:outline-none transition-colors"
+              style={{
+                background: "var(--surface)",
+                borderColor: "var(--border-strong)",
+                color: "var(--foreground)",
+              }}
               autoFocus
               disabled={loading}
             />
           </div>
 
           {error && (
-            <p className="text-red-500 text-sm text-center">{error}</p>
+            <p className="text-sm text-center" style={{ color: "var(--mark)" }}>
+              {error}
+            </p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-black text-white py-3 rounded-xl font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 font-semibold uppercase tracking-[.06em] text-[13px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed border"
+            style={{
+              background: "var(--active)",
+              color: "var(--foreground)",
+              borderColor: "var(--mark)",
+            }}
           >
             {loading ? "Verificando..." : "Acessar Álbum"}
           </button>

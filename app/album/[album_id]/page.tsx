@@ -20,10 +20,23 @@ export default async function AlbumPage({
 
   // If album is private, show the gate (client-side)
   if (album.privado) {
-    return <PrivateAlbumWrapper albumId={album_id} />;
+    return (
+      <PrivateAlbumWrapper
+        albumId={album_id}
+        albumName={album.nome}
+        rollNum={album.id}
+      />
+    );
   }
 
   // Public album — load photos directly
   const images = await get_album_photos(album_id);
-  return <AlbumClient images={images} album_id={album_id} />;
+  return (
+    <AlbumClient
+      images={images}
+      album_id={album_id}
+      albumName={album.nome}
+      rollNum={album.id}
+    />
+  );
 }

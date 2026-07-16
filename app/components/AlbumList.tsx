@@ -1,41 +1,53 @@
 import React from "react";
-import Link from "next/link";
-import Photo from "@components/Photo";
+import RollRow from "@components/RollRow";
+import FeaturedFrame from "@components/FeaturedFrame";
+
+interface Frame {
+  nome: string;
+  hash: string | null;
+  width: number | null;
+  height: number | null;
+}
 
 interface AlbumListProps {
-  albuns: { id: number; nome: string; cover: string | null; descricao: string | null; privado?: boolean }[];
+  albuns: {
+    id: number;
+    nome: string;
+    cover: string | null;
+    descricao: string | null;
+    privado?: boolean;
+    frameCount: number;
+    frames: Frame[];
+  }[];
 }
 
 const AlbumList: React.FC<AlbumListProps> = ({ albuns }) => {
   if (!Array.isArray(albuns)) return <></>;
 
   return (
-    <div className="flex items-center justify-center">
-      {albuns.map((album, index) => {
-        // Strip leading "_" from display name for private albums
-        const displayName = album.nome.startsWith("_") ? album.nome.slice(1) : album.nome;
-        return (
-          <div key={album.id} className="flex-shrink-0 w-80">
-            <Link href={`/album/${album.id}`} className="flex flex-col items-center text-center bg-white rounded-lg shadow-lg transition-transform transform hover:-translate-y-1 hover:shadow-2xl border-2 border-gray-200 p-4 relative">
-              {album.privado && (
-                <span className="absolute top-3 right-3 text-gray-500 text-xl" title="Álbum privado">🔒</span>
-              )}
-              <Photo
-                imageName={album.cover || ""}
-                descricao={""}
-                hash={""}
-                album_id={album.id}
-                width={700}
-                height={700}
-                className="w-50 h-80 object-cover rounded-t-lg"
-                sizes="320px"
-                priority={index < 2}
-              />
-              <h2 className="mt-4 mb-2 text-lg font-semibold">{displayName}</h2>
-            </Link>
-          </div>
-        );
-      })}
+    <div className="w-full">
+      <div
+        className="text-[11px] uppercase tracking-[.1em] mb-[18px]"
+        style={{ color: "var(--muted)" }}
+      >
+        Rolls
+      </div>
+
+      <FeaturedFrame />
+
+      <div className="flex flex-col gap-[22px]">
+        {albuns.map((album) => (
+          <RollRow
+            key={album.id}
+            albumId={album.id}
+            num={album.id}
+            nome={album.nome}
+            frames={album.frames}
+            frameCount={album.frameCount}
+            privado={album.privado}
+          />
+        ))}
+      </div>
     </div>
   );
 };

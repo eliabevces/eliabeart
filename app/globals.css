@@ -2,19 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Film Contact Sheet — "Silver" palette.
+   Neutrals sit at chroma 0.004 / hue 0 (true silver gelatin grey); the marking
+   red is the only saturated colour in the set, so marked frames pop. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: oklch(17% 0.004 0);
+  --foreground: oklch(90% 0.004 0);
+  --surface: oklch(8% 0.004 0);
+  --surface-raised: oklch(10% 0.004 0);
+  --overlay: oklch(6% 0.004 0 / 0.96);
+  --scrim: oklch(10% 0.004 0 / 0.8);
+  --sprocket: oklch(22% 0.004 0);
+  --border: oklch(30% 0.004 0);
+  --border-strong: oklch(35% 0.004 0);
+  --muted-dim: oklch(45% 0.004 0);
+  --muted: oklch(60% 0.004 0);
+  --muted-strong: oklch(65% 0.004 0);
+  --accent: oklch(65% 0.01 25);
+  --active: oklch(30% 0.06 25);
+  --mark: oklch(55% 0.2 30);
+  --mark-bright: oklch(70% 0.2 30);
+  --mark-wash: oklch(55% 0.2 30 / 0.15);
+
+  /* Featured hero: an enlarged contact strip */
+  --hero-strip-bg: oklch(9% 0.004 0);
+
+  /* Roll canister + the strip pulling out of it */
+  --canister-edge: oklch(20% 0.004 0);
+  --canister-face: oklch(34% 0.004 0);
+  --canister-spool: oklch(12% 0.004 0);
+  --canister-rim: oklch(45% 0.004 0);
+  --canister-tab: oklch(30% 0.004 0);
+  --strip-bg: oklch(6% 0.002 0);
+  --frame-divider: oklch(20% 0.004 0);
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-space-grotesk), monospace;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .font-serif-italic {
+    font-family: var(--font-instrument-serif), serif;
+    font-style: italic;
   }
 }

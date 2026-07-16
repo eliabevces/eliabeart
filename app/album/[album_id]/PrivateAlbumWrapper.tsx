@@ -6,10 +6,14 @@ import { Foto } from "@/app/types/Foto";
 
 interface PrivateAlbumWrapperProps {
   albumId: string;
+  albumName?: string;
+  rollNum?: number;
 }
 
 const PrivateAlbumWrapper: React.FC<PrivateAlbumWrapperProps> = ({
   albumId,
+  albumName,
+  rollNum,
 }) => {
   const [accessGranted, setAccessGranted] = useState(false);
   const [images, setImages] = useState<Foto[]>([]);
@@ -74,7 +78,15 @@ const PrivateAlbumWrapper: React.FC<PrivateAlbumWrapperProps> = ({
     return <PrivateAlbumGate albumId={albumId} onAccessGranted={handleAccessGranted} />;
   }
 
-  return <AlbumClient images={images} album_id={albumId} code={code} />;
+  return (
+    <AlbumClient
+      images={images}
+      album_id={albumId}
+      code={code}
+      albumName={albumName}
+      rollNum={rollNum}
+    />
+  );
 };
 
 export default PrivateAlbumWrapper;
